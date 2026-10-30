@@ -63,8 +63,6 @@ h1 .p{color:var(--lav)}
 .btn[aria-pressed="true"]{background:var(--paper)}
 .btn[aria-pressed="false"]{opacity:.7}
 .btn:focus-visible,.views button:focus-visible,.tile:focus-visible,.tab:focus-visible,.dog:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
-.target{margin:2px 0 4px}
-.target span{font-weight:800;font-size:13px;color:var(--muted)}
 .rack .chip[aria-pressed="false"]{background:var(--paper);color:var(--ink)}
 .framebar{display:flex;flex-direction:column;gap:8px}
 .chip{font-size:13.5px;padding:5px 12px}
@@ -180,7 +178,6 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
       <section>
         <h2>选一张照片 <small id="dogNote"></small></h2>
         <div class="dogs" id="dogs"></div>
-        <div class="bar target" id="targetBar" hidden></div>
         <div id="manageBox"></div>
       </section>
       <div class="tabs" role="tablist" id="tabs"></div>
@@ -492,7 +489,7 @@ const PLACEHOLDERS = [
 ];
 
 /* ---------- State ---------- */
-const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true, aspect: 'orig', photo: { z: 1, x: 0, y: 0 }, target: 0 };
+const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true, aspect: 'orig', photo: { z: 1, x: 0, y: 0 } };
 let dogs = PLACEHOLDERS.slice(), officeDogs = [], myPhoto = null;
 const undoStack = [];
 const snap = () => JSON.stringify({ filter: S.filter, frame: S.frame, items: S.items, border: S.border, grain: S.grain, aspect: S.aspect, photo: S.photo });
@@ -541,7 +538,7 @@ function syncPhotoUI() {
 function loadDog(d) {
   const img = new Image();
   img.onload = () => {
-    baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI(); renderTarget();
+    baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI();
     if (openingPending && (builtinPhotos.length || !fetchingPhotos)) { openingPending = false; openingOutfit(); }
     dirty(); refreshFilterThumbs();
   };
@@ -730,7 +727,7 @@ function uiScale() { const r = cv.getBoundingClientRect(); return r.width ? cv.w
 /* ---------- Adding items ---------- */
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 // Costume default positions are authored on a 1000px square with the dog's eyes at (500, 455) and a 470px-wide head
-function placement(s, target = S.target) {
+function placement(s, target = 0) {
   const W = cv.width, H = cv.height;
   if (['hat', 'face', 'body'].includes(s.cat)) {
     const p = photoRect(W, H), heads = currentDog().heads;
@@ -749,8 +746,15 @@ function addItem(k) {
   const s = getSticker(k); if (!s) return;
   pushHistory();
   const jitter = s.cat === 'decor' || s.cat === 'emoji' ? (Math.random() - .5) * .06 : 0;
-  const pl = placement(s);
-  S.items.push({ k, x: pl.x + jitter, y: pl.y + jitter, s: pl.s, r: 0, f: false, born: reduceMotion ? 0 : performance.now() });
+  const heads = currentDog().heads || [];
+  let t = 0;
+  if (heads.length > 1 && ['hat', 'face', 'body'].includes(s.cat)) {
+    // Several dogs in the photo: give each new piece to the dog wearing the fewest of that kind
+    const worn = heads.map((_, i) => S.items.filter(it => it.t === i && getSticker(it.k)?.cat === s.cat).length);
+    t = worn.indexOf(Math.min(...worn));
+  }
+  const pl = placement(s, t);
+  S.items.push({ k, x: pl.x + jitter, y: pl.y + jitter, s: pl.s, r: 0, f: false, t, born: reduceMotion ? 0 : performance.now() });
   S.sel = S.items.length - 1; dirty();
 }
 
@@ -949,7 +953,7 @@ $('panel').addEventListener('click', e => {
 /* ---------- Random outfit ---------- */
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function openingOutfit() {
-  const on = (k, t, extra = {}) => ({ k, ...placement(REG[k], t), r: 0, f: false, ...extra });
+  const on = (k, t, extra = {}) => ({ k, ...placement(REG[k], t), r: 0, f: false, t, ...extra });
   const two = (currentDog().heads || []).length > 1;
   S.items = two
     ? [on('svg:witch', 0, { r: -.08 }), on('svg:vampirecollar', 0), on('svg:pumpkinhat', 1), on('svg:bowtie', 1), on('svg:bats', 0), on('svg:jack', 0)]
@@ -965,7 +969,7 @@ function randomOutfit() {
   const bodies = ids('body'), big = ['svg:ghostsheet', 'svg:pumpkinsuit'];
   const n = Math.max(1, (currentDog().heads || []).length);
   for (let t = 0; t < n; t++) {
-    const on = k => ({ k, ...placement(REG[k], t), r: 0, f: false });
+    const on = k => ({ k, ...placement(REG[k], t), r: 0, f: false, t });
     const body = pick(Math.random() < .12 ? big : bodies.filter(k => !big.includes(k) && REG[k].w < .5));
     if (!big.includes(body)) { items.push(on(pick(ids('hat')))); if (Math.random() < .6) items.push(on(pick(ids('face')))); }
     items.push(on(body));
@@ -977,18 +981,9 @@ function randomOutfit() {
 }
 
 /* ---------- Dogs ---------- */
-function renderTarget() {
-  const heads = currentDog().heads || [], bar = $('targetBar');
-  bar.hidden = heads.length < 2;
-  if (heads.length < 2) return;
-  if (S.target >= heads.length) S.target = 0;
-  const label = (h, i) => h.name || (heads.length === 2 ? ['左边狗狗', '右边狗狗'][i] : `第 ${i + 1} 只`);
-  bar.innerHTML = '<span>新装扮穿到：</span>' + heads.map((h, i) => `<button class="btn chip" data-target="${i}" aria-pressed="${i === S.target}">${esc(label(h, i))}</button>`).join('');
-}
 function renderDogs() {
   const list = dogs.map(d => `<button class="dog" data-key="${esc(d.key)}" aria-pressed="${d.key === S.dogKey}"><img src="${esc(d.src)}" alt=""><span>${esc(d.name)}</span></button>`).join('');
   $('dogs').innerHTML = list + `<button class="dog upload" id="mineBtn"><div class="ph">📷</div><span>上传我的宠物</span></button>`;
-  renderTarget();
   const real = officeDogs.length || builtinPhotos.length;
   $('dogNote').textContent = real ? '也可以上传你自己的宠物照片' : '先用示例狗狗玩，或上传你的宠物';
 }
@@ -1222,7 +1217,6 @@ $('sortTop').onclick = () => { sortMode = 'top'; $('sortTop').setAttribute('aria
 $('undoBtn').onclick = undo;
 $('clearBtn').onclick = () => { if (!S.items.length && S.frame === 'none' && S.filter === 'none') return; pushHistory(); S.items = []; S.sel = -1; S.frame = 'none'; S.filter = 'none'; dirty(); refreshPanel(); };
 $('randomBtn').onclick = randomOutfit;
-$('targetBar').addEventListener('click', e => { const b = e.target.closest('[data-target]'); if (b) { S.target = +b.dataset.target; renderTarget(); } });
 $('aspectBar').innerHTML = ASPECTS.map(([id, name]) => `<button class="btn chip" data-aspect="${id}" aria-pressed="${id === S.aspect}">${name}</button>`).join('');
 $('aspectBar').addEventListener('click', e => { const b = e.target.closest('[data-aspect]'); if (b) setAspect(b.dataset.aspect); });
 $('zoom').addEventListener('pointerdown', () => pushHistory());
