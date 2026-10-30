@@ -736,7 +736,10 @@ function placement(s, target = S.target) {
     const p = photoRect(W, H), heads = currentDog().heads;
     if (heads && heads.length) {
       const a = heads[Math.min(target, heads.length - 1)], k = a.w * p.w / 470;
-      return { x: (p.x + a.x * p.w + (s.pos[0] * 1000 - 500) * k) / W, y: (p.y + a.y * p.h + (s.pos[1] * 1000 - 455) * k) / H, s: s.w * 1000 * k / W };
+      // Real dogs have longer snouts than the cartoon: neck items hang off the marked neck line
+      const y = s.cat === 'body' && isFinite(a.neck) ? p.y + a.neck * p.h + (s.pos[1] * 1000 - 670) * k
+        : p.y + a.y * p.h + (s.pos[1] * 1000 - 455) * k;
+      return { x: (p.x + a.x * p.w + (s.pos[0] * 1000 - 500) * k) / W, y: y / H, s: s.w * 1000 * k / W };
     }
     return { x: (p.x + s.pos[0] * p.w) / W, y: (p.y + s.pos[1] * p.h) / H, s: s.w * p.w / W };
   }
@@ -853,7 +856,7 @@ const SEL_ACTIONS = [
 ];
 let selbarState = '';
 function renderSelbar() {
-  const st = S.sel >= 0 ? 'on' : 'off';
+  const st = S.sel >= 0 ? 'on' : S.items.length ? 'off' : 'empty';
   if (st === selbarState) return; selbarState = st;
   const bar = $('selbar'); bar.innerHTML = '';
   if (S.sel < 0) { bar.innerHTML = `<span class="label">${S.items.length ? '点画面上的装扮来选中它' : '从右边挑一件装扮开始吧 →'}</span>`; return; }
@@ -1025,7 +1028,7 @@ function loadBuiltinPhotos() {
   fetch('photos/photos.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).then(list => {
     builtinPhotos = (Array.isArray(list) ? list : []).filter(p => p && p.file)
       .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file),
-        heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, name: String(h.name || '') })) : null }));
+        heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, neck: h.neck == null ? NaN : +h.neck, name: String(h.name || '') })) : null }));
     fetchingPhotos = false;
     if (!builtinPhotos.length) { if (openingPending && baseImg) { openingPending = false; openingOutfit(); dirty(); } return; }
     if (S.dogKey.startsWith('demo') && !officeDogs.length) { S.dogKey = builtinPhotos[0].key; loadDog(builtinPhotos[0]); }
