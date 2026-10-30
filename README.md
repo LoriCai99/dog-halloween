@@ -1,4 +1,4 @@
-# 狗狗万圣变装间 🎃🐶🐱
+# 毛孩子万圣变装间 🎃🐶🐱
 
 给办公室狗狗 Goofs（或者你家的毛孩子）做万圣节数字变装的小网页：<https://loricai99.github.io/dog-halloween/>
 

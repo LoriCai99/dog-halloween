@@ -6,7 +6,7 @@
 <style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>狗狗万圣变装间</title>
+<title>毛孩子万圣变装间</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Creepster&family=Nunito:wght@600;700;800&display=swap">
 <style>
@@ -144,7 +144,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
   <header>
     <div class="floaties" id="floaties" aria-hidden="true"></div>
     <div style="position:relative">
-      <h1><span>狗</span><span>狗</span><span class="o">万</span><span class="o">圣</span><span class="p">变</span><span>装</span><span>间</span></h1>
+      <h1><span>毛</span><span>孩</span><span>子</span><span class="o">万</span><span class="o">圣</span><span class="p">变</span><span>装</span><span>间</span></h1>
       <p class="sub">给办公室狗狗（或者你家的毛孩子）挑一身万圣装扮，拖动、缩放、旋转，保存下来发给大家。</p>
     </div>
     <div class="views" role="group" aria-label="切换视图">
@@ -539,7 +539,6 @@ function loadDog(d) {
   const img = new Image();
   img.onload = () => {
     baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI();
-    if (openingPending && (builtinPhotos.length || !fetchingPhotos)) { openingPending = false; openingOutfit(); }
     dirty(); refreshFilterThumbs();
   };
   img.onerror = () => {
@@ -952,13 +951,6 @@ $('panel').addEventListener('click', e => {
 
 /* ---------- Random outfit ---------- */
 const pick = a => a[Math.floor(Math.random() * a.length)];
-function openingOutfit() {
-  const on = (k, t, extra = {}) => ({ k, ...placement(REG[k], t), r: 0, f: false, t, ...extra });
-  const two = (currentDog().heads || []).length > 1;
-  S.items = two
-    ? [on('svg:witch', 0, { r: -.08 }), on('svg:vampirecollar', 0), on('svg:pumpkinhat', 1), on('svg:bowtie', 1), on('svg:bats', 0), on('svg:jack', 0)]
-    : [on('svg:witch', 0, { r: -.08 }), on('svg:vampirecollar', 0), on('svg:candypail', 0), on('svg:jack', 0)];
-}
 function randomOutfit() {
   pushHistory();
   const ids = c => CATALOG.filter(x => x[2] === c).map(x => 'svg:' + x[0]);
@@ -1025,10 +1017,10 @@ function loadBuiltinPhotos() {
       .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file),
         heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, neck: h.neck == null ? NaN : +h.neck, name: String(h.name || '') })) : null }));
     fetchingPhotos = false;
-    if (!builtinPhotos.length) { if (openingPending && baseImg) { openingPending = false; openingOutfit(); dirty(); } return; }
+    if (!builtinPhotos.length) return;
     if (S.dogKey.startsWith('demo') && !officeDogs.length) { S.dogKey = builtinPhotos[0].key; loadDog(builtinPhotos[0]); }
     rebuildDogs();
-  }).catch(() => { fetchingPhotos = false; if (openingPending && baseImg) { openingPending = false; openingOutfit(); dirty(); } });
+  }).catch(() => { fetchingPhotos = false; });
 }
 function rebuildDogs() {
   dogs = (officeDogs.length ? officeDogs : builtinPhotos.length ? builtinPhotos : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
@@ -1236,7 +1228,6 @@ window.addEventListener('resize', dirty);
 $('undoBtn').disabled = true;
 renderTabs(); refreshPanel(); renderDogs(); loadDog(currentDog());
 // Opening example outfit so the stage shows what the tool does
-let openingPending = true;
 fontsPromise.then(dirty);
 if (location.hash === '#gallery') setView('gallery');
 initCaps();
