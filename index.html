@@ -9,7 +9,7 @@
 <title>毛孩子万圣变装间</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%83%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Creepster&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" id="gf" media="print" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Creepster&family=Nunito:wght@600;700;800&display=swap">
 <style>
 /* Layout: a haunted hallway at night — violet walls, a yellow-lit stage like an open doorway, lavender drawers of costumes; everything flat, round and grainy like a risograph print */
 :root{
@@ -22,6 +22,7 @@
   --body:"Nunito","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   color-scheme:dark;
 }
+[hidden]{display:none!important}
 html,body{background:var(--wall);color:var(--on-wall)}
 html{min-height:100%;background:var(--grain),var(--wall)}
 body{font-family:var(--body);font-size:14px;line-height:1.5;
@@ -51,6 +52,7 @@ h1 .p{color:var(--lav)}
 .stage-col{display:flex;flex-direction:column;gap:12px;min-width:0}
 @media (min-width:901px){.stage-col{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}}
 .stage{background:var(--grain),var(--wall-deep);border-radius:36px;display:flex;justify-content:center;align-items:center;padding:16px;min-height:240px;box-shadow:inset 0 0 0 6px #9c8ad8}
+#stage:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
 #stage{display:block;max-width:100%;max-height:68vh;width:auto;height:auto;touch-action:none;border-radius:22px;cursor:grab}
 .hint{color:var(--on-wall-muted);font-size:12.5px;margin:0;font-weight:700}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -169,7 +171,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
 
   <div id="studioView" class="studio">
     <div class="stage-col">
-      <div class="stage"><canvas id="stage" width="1000" height="1000" aria-label="变装画布"></canvas></div>
+      <div class="stage"><canvas id="stage" width="1000" height="1000" tabindex="0" aria-label="变装画布：方括号键切换选中的装扮，方向键移动，Delete 删除"></canvas></div>
       <div class="framebar">
         <div class="bar" id="aspectBar" role="group" aria-label="画面比例"></div>
         <div class="bar photobar"><label for="zoom">照片大小</label><input type="range" id="zoom" min="50" max="400" value="100"><button class="btn chip" id="fitBtn">完整</button><button class="btn chip" id="coverBtn">铺满</button></div>
@@ -422,10 +424,14 @@ CATALOG.forEach(([id, name, cat, vw, vh, w, pos, inner]) => {
 const FONT_DISPLAY = '"ZCOOL KuaiLe","PingFang SC","Microsoft YaHei",sans-serif';
 const FONT_SPOOKY = 'Creepster,"ZCOOL KuaiLe","PingFang SC",sans-serif';
 let fontsReady = false;
-const fontsPromise = Promise.all([
+// The font stylesheet loads as media="print" so it never blocks the page; switch it on once it arrives (or give up after 4s)
+const gf = document.getElementById('gf');
+const gfReady = new Promise(res => { if (gf.sheet) res(); else { gf.addEventListener('load', res); gf.addEventListener('error', res); setTimeout(res, 4000); } })
+  .then(() => { gf.media = 'all'; });
+const fontsPromise = gfReady.then(() => Promise.all([
   document.fonts?.load('80px "ZCOOL KuaiLe"', '汪万圣节ABC'),
   document.fonts?.load('80px Creepster', 'BOO'),
-].map(p => (p || Promise.resolve()).catch(() => {}))).then(() => { fontsReady = true; });
+].map(p => (p || Promise.resolve()).catch(() => {})))).then(() => { fontsReady = true; });
 
 function emojiCanvas(e) {
   const c = document.createElement('canvas'); c.width = c.height = 200;
@@ -507,6 +513,8 @@ const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, 
 let dogs = PLACEHOLDERS.slice(), officeDogs = [], myPhoto = null;
 const undoStack = [];
 const snap = () => JSON.stringify({ filter: S.filter, frame: S.frame, items: S.items, border: S.border, grain: S.grain, aspect: S.aspect, photo: S.photo });
+let lastBurst = 0;
+function pushHistoryBurst() { const t = performance.now(); if (t - lastBurst > 700) pushHistory(); lastBurst = t; }
 function pushHistory() { undoStack.push(snap()); if (undoStack.length > 60) undoStack.shift(); $('undoBtn').disabled = false; }
 function undo() { const h = undoStack.pop(); if (!h) return; const o = JSON.parse(h); S.filter = o.filter; S.frame = o.frame; S.items = o.items; S.border = o.border !== false; S.grain = o.grain !== false; S.sel = -1; syncBorderBtn();
   if (o.aspect && o.aspect !== S.aspect) { S.aspect = o.aspect; sizeCanvas(); } S.photo = o.photo || { z: 1, x: 0, y: 0 }; syncPhotoUI(); $('undoBtn').disabled = !undoStack.length; dirty(); refreshPanel(); }
@@ -538,7 +546,10 @@ function remapItems(change) {
   const W = cv.width, H = cv.height, p = photoRect(W, H);
   S.items.forEach((it, i) => { const q = rel[i]; it.x = (p.x + q.u * p.w) / W; it.y = (p.y + q.v * p.h) / H; it.s = q.k * p.w / W; });
 }
-const clampPan = v => Math.max(-.75, Math.min(.75, v));
+function clampPan(v, axis) {
+  const p = photoRect(cv.width, cv.height), over = axis === 'x' ? p.w / cv.width : p.h / cv.height, lim = Math.max(.75, (over - 1) / 2 + .25);
+  return Math.max(-lim, Math.min(lim, v));
+}
 function setZoom(z) { remapItems(() => { S.photo.z = Math.max(.5, Math.min(4, z)); }); syncPhotoUI(); dirty(); }
 function setAspect(a) {
   if (a === S.aspect) return; pushHistory();
@@ -552,13 +563,14 @@ function syncPhotoUI() {
 function loadDog(d) {
   const img = new Image();
   img.onload = () => {
+    if (S.dogKey !== d.key) return; // a newer photo was picked while this one loaded
     baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI();
     dirty(); refreshFilterThumbs();
   };
   img.onerror = () => {
     // A listed built-in photo that is missing should not leave an empty stage
-    if (builtinPhotos.includes(d)) { builtinPhotos = builtinPhotos.filter(x => x !== d); S.dogKey = ''; rebuildDogs(); return; }
-    toast('这张照片加载失败，换一张试试');
+    if (builtinPhotos.includes(d)) { builtinPhotos = builtinPhotos.filter(x => x !== d); rebuildDogs(); return; }
+    if (S.dogKey === d.key) toast('这张照片加载失败，换一张试试');
   };
   img.src = d.src;
 }
@@ -786,8 +798,9 @@ function hitTest(p) {
   const k = uiScale(), hr = 18 * k;
   if (S.sel >= 0 && S.items[S.sel]) {
     const it = S.items[S.sel], { w, h } = itemGeom(it), l = local(it, p);
-    if (Math.hypot(l.x - w/2, l.y - h/2) <= hr) return { i: S.sel, mode: 'handle' };
-    if (Math.hypot(l.x + w/2, l.y + h/2) <= hr) return { i: S.sel, mode: 'delete' };
+    const inside = Math.abs(l.x) <= w/2 && Math.abs(l.y) <= h/2, roomy = Math.min(w, h) > hr * 3;
+    if (Math.hypot(l.x - w/2, l.y - h/2) <= hr && (!inside || roomy)) return { i: S.sel, mode: 'handle' };
+    if (Math.hypot(l.x + w/2, l.y + h/2) <= hr && (!inside || roomy)) return { i: S.sel, mode: 'delete' };
   }
   for (let i = S.items.length - 1; i >= 0; i--) {
     const it = S.items[i], { w, h } = itemGeom(it), l = local(it, p);
@@ -805,17 +818,16 @@ cv.addEventListener('pointerdown', e => {
   }
   if (pointers.size === 2 && S.sel >= 0) {
     const [a, b] = [...pointers.values()], it = S.items[S.sel];
-    drag = { mode: 'pinch', d0: Math.hypot(b.x - a.x, b.y - a.y), a0: Math.atan2(b.y - a.y, b.x - a.x), s0: it.s, r0: it.r };
+    drag = { mode: 'pinch', d0: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)), a0: Math.atan2(b.y - a.y, b.x - a.x), s0: it.s, r0: it.r };
     return;
   }
   const hit = hitTest(p);
   if (!hit) { S.sel = -1; drag = baseCache.canvas ? { mode: 'pan', px: p.x, py: p.y, pushed: false } : null; if (drag) cv.style.cursor = 'grabbing'; dirty(); return; }
   if (hit.mode === 'delete') { removeSel(); return; }
-  pushHistory();
   S.sel = hit.i; const it = S.items[hit.i];
   if (hit.mode === 'handle') {
     const cx = it.x * cv.width, cy = it.y * cv.height;
-    drag = { mode: 'handle', d0: Math.hypot(p.x - cx, p.y - cy), a0: Math.atan2(p.y - cy, p.x - cx), s0: it.s, r0: it.r };
+    drag = { mode: 'handle', d0: Math.max(Math.hypot(p.x - cx, p.y - cy), 12 * uiScale()), a0: Math.atan2(p.y - cy, p.x - cx), s0: it.s, r0: it.r };
   } else {
     drag = { mode: 'move', ox: p.x / cv.width - it.x, oy: p.y / cv.height - it.y };
     cv.style.cursor = 'grabbing';
@@ -829,11 +841,12 @@ cv.addEventListener('pointermove', e => {
     if (!drag.pushed) { pushHistory(); drag.pushed = true; }
     if (drag.mode === 'pan') {
       const dx = (p.x - drag.px) / cv.width, dy = (p.y - drag.py) / cv.height; drag.px = p.x; drag.py = p.y;
-      remapItems(() => { S.photo.x = clampPan(S.photo.x + dx); S.photo.y = clampPan(S.photo.y + dy); }); dirty();
+      remapItems(() => { S.photo.x = clampPan(S.photo.x + dx, 'x'); S.photo.y = clampPan(S.photo.y + dy, 'y'); }); dirty();
     } else if (pointers.size >= 2) { const [a, b] = [...pointers.values()]; setZoom(drag.z0 * Math.hypot(b.x - a.x, b.y - a.y) / drag.d0); }
     return;
   }
   if (!drag || S.sel < 0) return;
+  if (!drag.pushed) { pushHistory(); drag.pushed = true; }
   const it = S.items[S.sel];
   if (drag.mode === 'move') { it.x = p.x / cv.width - drag.ox; it.y = p.y / cv.height - drag.oy; }
   else if (drag.mode === 'handle') {
@@ -850,8 +863,8 @@ cv.addEventListener('pointermove', e => {
 const endPtr = e => { pointers.delete(e.pointerId); if (pointers.size < 2 && (drag?.mode === 'pinch' || drag?.mode === 'pzoom')) drag = null; if (!pointers.size) { drag = null; cv.style.cursor = 'grab'; } };
 cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('wheel', e => {
-  if (S.sel < 0) { if (e.ctrlKey && baseCache.canvas) { e.preventDefault(); setZoom(S.photo.z * Math.exp(-e.deltaY * .01)); } return; }
-  e.preventDefault();
+  if (S.sel < 0) { if (e.ctrlKey && baseCache.canvas) { e.preventDefault(); pushHistoryBurst(); setZoom(S.photo.z * Math.exp(-e.deltaY * .01)); } return; }
+  e.preventDefault(); pushHistoryBurst();
   const it = S.items[S.sel];
   if (e.shiftKey) it.r += e.deltaY * .003; else it.s = Math.max(.02, Math.min(2.5, it.s * Math.exp(-e.deltaY * .0015)));
   dirty();
@@ -859,10 +872,13 @@ cv.addEventListener('wheel', e => {
 document.addEventListener('keydown', e => {
   if (e.target.matches('input,textarea,select')) return;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  if ((e.key === '[' || e.key === ']') && S.items.length && !$('studioView').hidden) {
+    e.preventDefault(); const n = S.items.length; S.sel = S.sel < 0 ? n - 1 : (S.sel + (e.key === ']' ? 1 : n - 1)) % n; dirty(); return;
+  }
   if (S.sel < 0 || $('studioView').hidden) return;
   const it = S.items[S.sel], step = e.shiftKey ? .02 : .005;
   const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-  if (moves[e.key]) { e.preventDefault(); it.x += moves[e.key][0]; it.y += moves[e.key][1]; dirty(); }
+  if (moves[e.key]) { e.preventDefault(); pushHistoryBurst(); it.x += moves[e.key][0]; it.y += moves[e.key][1]; dirty(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeSel(); }
   else if (e.key === 'Escape') { S.sel = -1; dirty(); }
 });
@@ -926,8 +942,9 @@ function refreshPanel() {
     p.innerHTML = `<div class="grid">${EMOJIS.map(e => `<button class="tile emoji" data-k="emoji:${e}">${e}</button>`).join('')}</div>`;
   } else if (activeCat === 'text') {
     p.innerHTML = `<div class="textform"><input type="text" id="customText" maxlength="24" placeholder="写一句台词，比如：我要吃小饼干"><select id="customStyle" aria-label="文字样式"><option value="bubble">对话气泡</option><option value="banner">南瓜横幅</option><option value="spooky">恐怖字体</option><option value="stamp">印章</option></select><button class="btn primary" id="addText">添加文字</button></div><div id="textGroups"></div>`;
+    const box = $('textGroups');
     fontsPromise.then(() => {
-      const box = $('textGroups'); if (!box) return;
+      if (!box.isConnected) return;
       TEXT_GROUPS.forEach(([title, items]) => {
         box.insertAdjacentHTML('beforeend', `<h3 class="tgroup">${esc(title)}</h3>`);
         const g = document.createElement('div'); g.className = 'grid text'; box.appendChild(g);
@@ -946,11 +963,12 @@ function refreshPanel() {
     $('customText').onkeydown = e => { if (e.key === 'Enter') $('addText').click(); };
   } else if (activeCat === 'frame') {
     p.innerHTML = `<div class="grid big" id="fg"></div><p class="note">相框盖在最上层，一次只能选一个。</p>`;
+    const fg = $('fg');
     fontsPromise.then(() => {
-      $('fg') && FRAMES.forEach(([id, name]) => {
+      fg.isConnected && FRAMES.forEach(([id, name]) => {
         const b = document.createElement('button'); b.className = 'tile'; b.dataset.frame = id; b.setAttribute('aria-pressed', S.frame === id);
         const c = thumbCache['f:' + id] || (thumbCache['f:' + id] = frameThumb(id)); const im = document.createElement('img'); im.src = c.toDataURL(); im.alt = '';
-        b.appendChild(im); b.insertAdjacentHTML('beforeend', `<span>${esc(name)}</span>`); $('fg').appendChild(b);
+        b.appendChild(im); b.insertAdjacentHTML('beforeend', `<span>${esc(name)}</span>`); fg.appendChild(b);
       });
     });
   } else if (activeCat === 'filter') {
@@ -1058,7 +1076,7 @@ function renderDogs() {
 $('dogs').addEventListener('click', e => {
   const b = e.target.closest('.dog'); if (!b) return;
   if (b.id === 'mineBtn') { $('fileMine').click(); return; }
-  selectDog(b.dataset.key);
+  if (b.dataset.key !== S.dogKey) selectDog(b.dataset.key);
 });
 function selectDog(key) {
   const d = dogs.find(x => x.key === key); if (!d) return;
@@ -1096,14 +1114,13 @@ function loadBuiltinPhotos() {
       .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file),
         heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, neck: h.neck == null ? NaN : +h.neck, name: String(h.name || '') })) : null }));
     fetchingPhotos = false;
-    if (!builtinPhotos.length) return;
-    if (S.dogKey.startsWith('demo') && !officeDogs.length) { S.dogKey = builtinPhotos[0].key; loadDog(builtinPhotos[0]); }
-    rebuildDogs();
+    if (builtinPhotos.length) rebuildDogs();
   }).catch(() => { fetchingPhotos = false; });
 }
 function rebuildDogs() {
   dogs = (officeDogs.length ? officeDogs : builtinPhotos.length ? builtinPhotos : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
-  if (!dogs.find(d => d.key === S.dogKey)) { S.dogKey = dogs[0].key; loadDog(dogs[0]); }
+  // The current photo left the list (e.g. built-in photos replaced the demo dogs): switch like a normal pick
+  if (!dogs.find(d => d.key === S.dogKey)) { S.dogKey = ''; selectDog(dogs[0].key); return; }
   renderDogs();
 }
 
@@ -1165,7 +1182,6 @@ async function initCaps() {
     officeDogs = snap.docs.map(d => ({ key: 'dog_' + d.id, id: d.id, ...d.data() }))
       .filter(d => d.asset || d.photo).sort((a, b) => (a.order || 0) - (b.order || 0))
       .map(d => ({ key: d.key, id: d.id, name: d.name || '狗狗', src: d.asset ? '/_blob/' + d.asset : d.photo, order: d.order || 0 }));
-    if (S.dogKey.startsWith('demo') && officeDogs.length) S.dogKey = officeDogs[0].key, loadDog(officeDogs[0]);
     rebuildDogs(); renderManage();
   }, () => {});
   db.collection('posts').orderBy('at', 'desc').limit(300).onSnapshot(snap => {
@@ -1290,8 +1306,7 @@ $('clearBtn').onclick = () => { if (!S.items.length && S.frame === 'none' && S.f
 $('randomBtn').onclick = randomOutfit;
 $('aspectBar').innerHTML = ASPECTS.map(([id, name]) => `<button class="btn chip" data-aspect="${id}" aria-pressed="${id === S.aspect}">${name}</button>`).join('');
 $('aspectBar').addEventListener('click', e => { const b = e.target.closest('[data-aspect]'); if (b) setAspect(b.dataset.aspect); });
-$('zoom').addEventListener('pointerdown', () => pushHistory());
-$('zoom').addEventListener('input', e => setZoom(e.target.value / 100));
+$('zoom').addEventListener('input', e => { pushHistoryBurst(); setZoom(e.target.value / 100); });
 $('fitBtn').onclick = () => { pushHistory(); remapItems(() => { S.photo = { z: 1, x: 0, y: 0 }; }); syncPhotoUI(); dirty(); };
 $('coverBtn').onclick = () => { pushHistory(); remapItems(() => { S.photo = { z: coverZoom(), x: 0, y: 0 }; }); syncPhotoUI(); dirty(); };
 function syncBorderBtn() { $('borderBtn').setAttribute('aria-pressed', S.border); $('grainBtn').setAttribute('aria-pressed', S.grain); }
