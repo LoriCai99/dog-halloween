@@ -7,6 +7,7 @@
   --wall:#4b33a8; --wall-deep:#3a2785; --lav:#c7b8f0; --lav-2:#d9cff7; --lav-3:#b09de6; --paper:#f4f0ff;
   --ink:#232a6b; --muted:#5f55a0; --on-wall:#efe9ff; --on-wall-muted:#c3b5f2;
   --yellow:#ffc21a; --yellow-2:#ffd75e; --orange:#e8742a; --red:#d9442f; --rose:#f2a0b8;
+  --grain-soft:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .28 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --display:"ZCOOL KuaiLe","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --body:"Nunito","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
@@ -58,19 +59,23 @@ h1 .p{color:var(--lav)}
 .selbar .btn{font-size:13.5px;padding:5px 12px}
 .selbar .label{color:var(--on-wall-muted);font-size:13px;font-weight:800;margin-right:4px}
 
-.rack{background:var(--grain),var(--lav);color:var(--ink);border-radius:36px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.rack{background:var(--grain-soft),var(--lav);color:var(--ink);border-radius:36px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .rack section{padding:18px 18px 0}
 .rack h2{font-family:var(--display);font-weight:400;font-size:21px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.rack h2 small{font-family:var(--body);font-size:12px;font-weight:800;color:var(--muted)}
+.rack h2 small{font-family:var(--body);font-size:12.5px;font-weight:800;color:var(--muted)}
 .dogs{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px}
 .dog{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:var(--lav-2);border-radius:26px;padding:8px 6px 6px;cursor:pointer;color:var(--ink);font-family:var(--display);width:88px}
 .dog img,.dog .ph{width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--wall);display:grid;place-items:center;font-size:26px}
-.dog span{font-size:13px;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dog span{font-family:var(--body);font-weight:800;font-size:12.5px;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dog[aria-pressed="true"]{background:var(--yellow)}
+.dog.upload{background:var(--wall);color:#fff}
+.dog.upload .ph{background:var(--yellow)}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 18px 4px}
-.tab{flex:0 0 auto;border:0;background:var(--lav-3);color:var(--ink);font-family:var(--display);font-size:15px;padding:5px 13px;border-radius:999px;cursor:pointer}
-.tab[aria-selected="true"]{background:var(--wall);color:var(--paper)}
-.tab sup{font-family:var(--body);font-size:10px;font-weight:800;opacity:.6;margin-left:2px;font-variant-numeric:tabular-nums}
+.tab{flex:0 0 auto;border:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-weight:800;font-size:14.5px;padding:7px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.tab:hover{background:#fff}
+.tab[aria-selected="true"]{background:var(--wall);color:#fff}
+.tab .n{font-size:11px;font-weight:800;background:var(--lav-2);color:var(--muted);border-radius:999px;padding:0 6px;line-height:18px;font-variant-numeric:tabular-nums}
+.tab[aria-selected="true"] .n{background:var(--yellow);color:var(--ink)}
 .panel{padding:12px 18px 18px;max-height:62vh;overflow-y:auto}
 @media (max-width:900px){.panel{max-height:none}}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px}
@@ -78,10 +83,13 @@ h1 .p{color:var(--lav)}
 .tile:hover{background:var(--paper);animation:wiggle .45s ease-in-out}
 @keyframes wiggle{25%{transform:rotate(-4deg) scale(1.05)}75%{transform:rotate(3deg) scale(1.05)}}
 .tile img,.tile canvas{width:58px;height:58px;object-fit:contain}
-.tile span{font-size:12px;font-weight:800;line-height:1.25;text-align:center;color:var(--muted)}
+.tile span{font-size:12.5px;font-weight:800;line-height:1.25;text-align:center;color:var(--ink)}
 .tile[aria-pressed="true"]{background:var(--yellow)}
 .tile.emoji{font-size:36px;line-height:1;padding:12px 4px}
 .grid.big .tile img,.grid.big .tile canvas{width:86px;height:86px;border-radius:18px;object-fit:cover}
+.tgroup{font-family:var(--body);font-weight:800;font-size:14px;margin:14px 0 8px}
+.grid.text{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.grid.text .tile img{width:100%;height:52px;object-fit:contain}
 .textform{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin-bottom:12px}
 @media (max-width:420px){.textform{grid-template-columns:minmax(0,1fr) auto}.textform .btn{grid-column:1/-1;justify-content:center}}
 input[type=text],select{background:var(--paper);color:var(--ink);border:0;border-radius:999px;padding:8px 14px;font:inherit;font-weight:700;min-width:0}
@@ -122,7 +130,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
     <div class="floaties" id="floaties" aria-hidden="true"></div>
     <div style="position:relative">
       <h1><span>狗</span><span>狗</span><span class="o">万</span><span class="o">圣</span><span class="p">变</span><span>装</span><span>间</span></h1>
-      <p class="sub">给办公室的狗狗挑一身万圣装扮，拖动、缩放、旋转，然后发到展览墙让大家点赞。</p>
+      <p class="sub">给办公室狗狗（或者你家的毛孩子）挑一身万圣装扮，拖动、缩放、旋转，保存下来发给大家。</p>
     </div>
     <div class="views" role="group" aria-label="切换视图">
       <button id="vStudio" aria-pressed="true">🎃 变装</button>
@@ -149,7 +157,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
 
     <div class="rack">
       <section>
-        <h2>选一只狗狗 <small id="dogNote"></small></h2>
+        <h2>选一张照片 <small id="dogNote"></small></h2>
         <div class="dogs" id="dogs"></div>
         <div id="manageBox"></div>
       </section>
@@ -200,7 +208,9 @@ const PAL = {};
  ['#8a6a3a #8a5a2b #6b4423 #5a3a2a', '#a0643a'], ['#f3e9bf', '#ffe9a8'], ['#e2d6a4', '#f2d27c'], ['#3d2645', '#2a2f6e']]
   .forEach(([from, to]) => from.split(' ').forEach(c => PAL[c] = to));
 const repaint = svg => svg.replace(/#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g, m => PAL[m.toLowerCase()] || m);
-const sv = (w, h, inner) => { const m = Math.max(w, h); return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><filter id="w" x="-6%" y="-6%" width="112%" height="112%"><feTurbulence type="fractalNoise" baseFrequency="${(6 / m).toFixed(4)}" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="${(m * .016).toFixed(1)}"/></filter></defs><g filter="url(#w)" stroke="none" stroke-linejoin="round" stroke-linecap="round">${repaint(inner)}</g></svg>`; };
+// Soft "gooey" rounding: blur the silhouette, re-threshold it, and clip the art to it, so every outer corner turns into a round blob edge
+const NO_ROUND = new Set(['web', 'spider', 'monocle', 'stitches', 'spiders']);
+const sv = (w, h, inner, round = true) => { const m = Math.max(w, h), r = Math.min(4.6, m * .022).toFixed(2); return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><filter id="w" x="-6%" y="-6%" width="112%" height="112%">${round ? `<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0" result="a"/><feGaussianBlur in="a" stdDeviation="${r}" result="b"/><feComponentTransfer in="b" result="goo"><feFuncA type="linear" slope="18" intercept="-8"/></feComponentTransfer><feComposite in="SourceGraphic" in2="goo" operator="in" result="src"/>` : ''}<feTurbulence type="fractalNoise" baseFrequency="${(6 / m).toFixed(4)}" numOctaves="2" seed="7" result="t"/><feDisplacementMap in="${round ? 'src' : 'SourceGraphic'}" in2="t" scale="${(m * .016).toFixed(1)}"/></filter></defs><g filter="url(#w)" stroke="none" stroke-linejoin="round" stroke-linecap="round">${repaint(inner)}</g></svg>`; };
 const star = (cx, cy, r, fill, n = 5) => {
   let p = [];
   for (let i = 0; i < n * 2; i++) {
@@ -337,10 +347,25 @@ const CATS = [
   { id: 'filter', name: '✨ 滤镜', c: '#c9f0ff' },
 ];
 const EMOJIS = ['🎃','👻','🦇','🕷️','🕸️','💀','☠️','🧛','🧙','🧟','🍬','🍭','🍫','🌕','🔮','🧹','⚰️','🪦','🐈‍⬛','🍂','🌙','⭐','👀','🩸','🦴','🐾','🍁','🌚'];
-const TEXTS = [
-  ['BOO!', 'bubble'], ['Happy Howl-o-ween', 'spooky'], ['不给糖就捣蛋！', 'banner'], ['汪汪万圣节', 'banner'],
-  ['Trick or Treat?', 'bubble'], ['我是全公司最凶的狗', 'bubble'], ['给零食就不吓你', 'bubble'], ['老板，我变身了', 'bubble'],
-  ['周五变身中…', 'spooky'], ['今晚不加班，只吓人', 'banner'], ['2026 万圣节', 'stamp'], ['认证：最佳装扮', 'stamp'],
+const TEXT_GROUPS = [
+  ['🐶 狗狗', [
+    ['汪！不给零食就捣蛋', 'bubble'], ['Trick or Treat? Woof!', 'bubble'], ['Happy Howl-o-ween', 'spooky'], ['狗狗万圣节快乐', 'banner'],
+    ['今晚我是吸血鬼汪', 'bubble'], ['Boo! I mean… Woof', 'bubble'], ['我不是狗，我是狼人', 'bubble'], ['Spooky Good Boy', 'banner'],
+    ['Spooky Pup', 'spooky'], ['零食交出来', 'stamp'], ['Treats Only, No Tricks', 'stamp'], ['尾巴一摇，鬼都怕', 'banner'],
+  ]],
+  ['🐱 猫猫', [
+    ['喵！不给小鱼干就捣蛋', 'bubble'], ['Trick or Treat? Meow!', 'bubble'], ['Happy Meow-o-ween', 'spooky'], ['猫猫万圣节快乐', 'banner'],
+    ['本喵是黑猫，你怕了吗', 'bubble'], ['I Put a Spell on You', 'bubble'], ['九条命，今晚用一条', 'bubble'], ['Purr-fectly Spooky', 'banner'],
+    ['Hiss-terical!', 'spooky'], ['罐头交出来', 'stamp'], ['Cat-tastrophe', 'stamp'], ['今晚由本喵值班', 'banner'],
+  ]],
+  ['🎃 万圣通用', [
+    ['BOO!', 'bubble'], ['不给糖就捣蛋！', 'banner'], ['Trick or Treat', 'banner'], ['Happy Halloween', 'spooky'],
+    ['Stay Spooky', 'spooky'], ['万圣节快乐', 'banner'], ['我是最可爱的小鬼', 'bubble'], ['Too Cute to Spook', 'stamp'], ['2026 万圣节', 'stamp'],
+  ]],
+  ['💼 办公室', [
+    ['老板，我变身了', 'bubble'], ['周五变身中…', 'spooky'], ['今晚不加班，只吓人', 'banner'], ['会议室闹鬼了', 'bubble'],
+    ['OOO: Haunting', 'banner'], ['Office Ghost', 'stamp'], ['工位守护神', 'stamp'], ['认证：最佳装扮', 'stamp'],
+  ]],
 ];
 const FILTERS = [
   ['none', '原图'], ['night', '夜色紫'], ['zombie', '僵尸绿'], ['sepia', '老照片'], ['noir', '黑白恐怖片'],
@@ -355,7 +380,7 @@ const FRAMES = [
 const REG = {};
 CATALOG.forEach(([id, name, cat, vw, vh, w, pos, inner]) => {
   const img = new Image();
-  const src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sv(vw, vh, inner));
+  const src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sv(vw, vh, inner, !NO_ROUND.has(id)));
   img.src = src;
   img.onload = () => dirty();
   REG['svg:' + id] = { name, cat, w, pos, img, src, ratio: vh / vw };
@@ -736,12 +761,12 @@ function renderSelbar() {
 /* ---------- Rack panel ---------- */
 let activeCat = 'hat';
 function catCount(c) {
-  if (c === 'text') return TEXTS.length; if (c === 'emoji') return EMOJIS.length;
+  if (c === 'text') return TEXT_GROUPS.reduce((n, g) => n + g[1].length, 0); if (c === 'emoji') return EMOJIS.length;
   if (c === 'frame') return FRAMES.length - 1; if (c === 'filter') return FILTERS.length - 1;
   return CATALOG.filter(x => x[2] === c).length;
 }
 function renderTabs() {
-  $('tabs').innerHTML = CATS.map(c => `<button class="tab" role="tab" aria-selected="${c.id === activeCat}" data-cat="${c.id}" style="--c:${c.c}">${c.name}<sup>${catCount(c.id)}</sup></button>`).join('');
+  $('tabs').innerHTML = CATS.map(c => `<button class="tab" role="tab" aria-selected="${c.id === activeCat}" data-cat="${c.id}">${c.name}<span class="n">${catCount(c.id)}</span></button>`).join('');
 }
 $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (!b) return; activeCat = b.dataset.cat; renderTabs(); refreshPanel(); });
 const thumbCache = {};
@@ -766,14 +791,18 @@ function refreshPanel() {
   } else if (activeCat === 'emoji') {
     p.innerHTML = `<div class="grid">${EMOJIS.map(e => `<button class="tile emoji" data-k="emoji:${e}">${e}</button>`).join('')}</div>`;
   } else if (activeCat === 'text') {
-    p.innerHTML = `<div class="textform"><input type="text" id="customText" maxlength="24" placeholder="写一句台词，比如：我要吃小饼干"><select id="customStyle" aria-label="文字样式"><option value="bubble">对话气泡</option><option value="banner">南瓜横幅</option><option value="spooky">恐怖字体</option><option value="stamp">印章</option></select><button class="btn primary" id="addText">添加文字</button></div><div class="grid" id="textGrid"></div>`;
-    const g = $('textGrid');
+    p.innerHTML = `<div class="textform"><input type="text" id="customText" maxlength="24" placeholder="写一句台词，比如：我要吃小饼干"><select id="customStyle" aria-label="文字样式"><option value="bubble">对话气泡</option><option value="banner">南瓜横幅</option><option value="spooky">恐怖字体</option><option value="stamp">印章</option></select><button class="btn primary" id="addText">添加文字</button></div><div id="textGroups"></div>`;
     fontsPromise.then(() => {
-      TEXTS.forEach(([t, st]) => {
-        const k = `text:${st}|${t}`, s = getSticker(k);
-        const b = document.createElement('button'); b.className = 'tile'; b.dataset.k = k; b.style.gridColumn = 'span 2';
-        const c = s.img; const im = document.createElement('img'); im.alt = ''; im.src = c.toDataURL(); im.style.width = '100%'; im.style.height = '56px';
-        b.appendChild(im); g.appendChild(b);
+      const box = $('textGroups'); if (!box) return;
+      TEXT_GROUPS.forEach(([title, items]) => {
+        box.insertAdjacentHTML('beforeend', `<h3 class="tgroup">${esc(title)}</h3>`);
+        const g = document.createElement('div'); g.className = 'grid text'; box.appendChild(g);
+        items.forEach(([t, st]) => {
+          const k = `text:${st}|${t}`, s = getSticker(k);
+          const b = document.createElement('button'); b.className = 'tile'; b.dataset.k = k; b.title = t;
+          const im = document.createElement('img'); im.alt = t; im.src = s.img.toDataURL();
+          b.appendChild(im); g.appendChild(b);
+        });
       });
     });
     $('addText').onclick = () => {
@@ -828,8 +857,9 @@ function randomOutfit() {
 /* ---------- Dogs ---------- */
 function renderDogs() {
   const list = dogs.map(d => `<button class="dog" data-key="${esc(d.key)}" aria-pressed="${d.key === S.dogKey}"><img src="${esc(d.src)}" alt=""><span>${esc(d.name)}</span></button>`).join('');
-  $('dogs').innerHTML = list + `<button class="dog" id="mineBtn"><div class="ph">📷</div><span>用我的照片</span></button>`;
-  $('dogNote').textContent = officeDogs.length ? `办公室有 ${officeDogs.length} 只狗狗` : '还没上传办公室狗狗，先用示例玩';
+  $('dogs').innerHTML = list + `<button class="dog upload" id="mineBtn"><div class="ph">📷</div><span>上传我的宠物</span></button>`;
+  const real = officeDogs.length || builtinPhotos.length;
+  $('dogNote').textContent = real ? '也可以上传你自己的宠物照片' : '先用示例狗狗玩，或上传你的宠物';
 }
 $('dogs').addEventListener('click', e => {
   const b = e.target.closest('.dog'); if (!b) return;
@@ -856,12 +886,23 @@ $('fileMine').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try {
     const c = await readImageFile(f, 1200);
-    myPhoto = { key: 'mine', name: '我的照片', src: c.toDataURL('image/jpeg', .9) };
+    myPhoto = { key: 'mine', name: '我的宠物', src: c.toDataURL('image/jpeg', .9) };
     rebuildDogs(); selectDog('mine');
   } catch { toast('读不了这张图片，换一张 JPG 或 PNG 试试'); }
 });
+let builtinPhotos = [];
+function loadBuiltinPhotos() {
+  if (location.protocol === 'file:') return;
+  fetch('photos/photos.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).then(list => {
+    builtinPhotos = (Array.isArray(list) ? list : []).filter(p => p && p.file)
+      .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file) }));
+    if (!builtinPhotos.length) return;
+    if (S.dogKey.startsWith('demo') && !officeDogs.length) { S.dogKey = builtinPhotos[0].key; loadDog(builtinPhotos[0]); }
+    rebuildDogs();
+  }).catch(() => {});
+}
 function rebuildDogs() {
-  dogs = (officeDogs.length ? officeDogs : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
+  dogs = (officeDogs.length ? officeDogs : builtinPhotos.length ? builtinPhotos : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
   if (!dogs.find(d => d.key === S.dogKey)) { S.dogKey = dogs[0].key; loadDog(dogs[0]); }
   renderDogs();
 }
@@ -1069,5 +1110,6 @@ S.items = [
 fontsPromise.then(dirty);
 if (location.hash === '#gallery') setView('gallery');
 initCaps();
+loadBuiltinPhotos();
 })();
 </script>
