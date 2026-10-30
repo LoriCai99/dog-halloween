@@ -63,6 +63,15 @@ h1 .p{color:var(--lav)}
 .btn[aria-pressed="true"]{background:var(--paper)}
 .btn[aria-pressed="false"]{opacity:.7}
 .btn:focus-visible,.views button:focus-visible,.tile:focus-visible,.tab:focus-visible,.dog:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.target{margin:2px 0 4px}
+.target span{font-weight:800;font-size:13px;color:var(--muted)}
+.rack .chip[aria-pressed="false"]{background:var(--paper);color:var(--ink)}
+.framebar{display:flex;flex-direction:column;gap:8px}
+.chip{font-size:13.5px;padding:5px 12px}
+.chip[aria-pressed="false"]{opacity:1;background:var(--wall-deep);color:var(--on-wall)}
+.chip[aria-pressed="true"]{background:var(--yellow);color:var(--ink)}
+.photobar label{color:var(--on-wall-muted);font-weight:800;font-size:13px}
+.photobar input[type=range]{flex:1 1 140px;min-width:0;accent-color:var(--yellow)}
 .selbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:40px}
 .selbar .btn{font-size:13.5px;padding:5px 12px}
 .selbar .label{color:var(--on-wall-muted);font-size:13px;font-weight:800;margin-right:4px}
@@ -149,8 +158,12 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
   <div id="studioView" class="studio">
     <div class="stage-col">
       <div class="stage"><canvas id="stage" width="1000" height="1000" aria-label="变装画布"></canvas></div>
+      <div class="framebar">
+        <div class="bar" id="aspectBar" role="group" aria-label="画面比例"></div>
+        <div class="bar photobar"><label for="zoom">照片大小</label><input type="range" id="zoom" min="50" max="400" value="100"><button class="btn chip" id="fitBtn">完整</button><button class="btn chip" id="coverBtn">铺满</button></div>
+      </div>
       <div class="selbar" id="selbar"></div>
-      <p class="hint">点装扮加到画面上 · 拖动移动 · 拖右下角圆点缩放/旋转 · 手机上可双指缩放旋转 · 方向键微调，Delete 删除</p>
+      <p class="hint">点装扮加到画面上 · 拖动移动 · 拖右下角圆点缩放/旋转 · 拖空白处移动照片，双指缩放照片 · 方向键微调，Delete 删除</p>
       <div class="bar">
         <button class="btn" id="undoBtn">↶ 撤销</button>
         <button class="btn" id="clearBtn">清空装扮</button>
@@ -167,6 +180,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
       <section>
         <h2>选一张照片 <small id="dogNote"></small></h2>
         <div class="dogs" id="dogs"></div>
+        <div class="bar target" id="targetBar" hidden></div>
         <div id="manageBox"></div>
       </section>
       <div class="tabs" role="tablist" id="tabs"></div>
@@ -478,25 +492,64 @@ const PLACEHOLDERS = [
 ];
 
 /* ---------- State ---------- */
-const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true };
+const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true, aspect: 'orig', photo: { z: 1, x: 0, y: 0 }, target: 0 };
 let dogs = PLACEHOLDERS.slice(), officeDogs = [], myPhoto = null;
 const undoStack = [];
-const snap = () => JSON.stringify({ filter: S.filter, frame: S.frame, items: S.items, border: S.border, grain: S.grain });
+const snap = () => JSON.stringify({ filter: S.filter, frame: S.frame, items: S.items, border: S.border, grain: S.grain, aspect: S.aspect, photo: S.photo });
 function pushHistory() { undoStack.push(snap()); if (undoStack.length > 60) undoStack.shift(); $('undoBtn').disabled = false; }
-function undo() { const h = undoStack.pop(); if (!h) return; const o = JSON.parse(h); S.filter = o.filter; S.frame = o.frame; S.items = o.items; S.border = o.border !== false; S.grain = o.grain !== false; S.sel = -1; syncBorderBtn(); $('undoBtn').disabled = !undoStack.length; dirty(); refreshPanel(); }
+function undo() { const h = undoStack.pop(); if (!h) return; const o = JSON.parse(h); S.filter = o.filter; S.frame = o.frame; S.items = o.items; S.border = o.border !== false; S.grain = o.grain !== false; S.sel = -1; syncBorderBtn();
+  if (o.aspect && o.aspect !== S.aspect) { S.aspect = o.aspect; sizeCanvas(); } S.photo = o.photo || { z: 1, x: 0, y: 0 }; syncPhotoUI(); $('undoBtn').disabled = !undoStack.length; dirty(); refreshPanel(); }
 
 const cv = $('stage'), ctx = cv.getContext('2d');
 let baseImg = null, baseCache = { key: '', canvas: null };
 
 function currentDog() { return dogs.find(d => d.key === S.dogKey) || dogs[0]; }
+const ASPECTS = [['orig', '原图'], ['1:1', '方形 1:1'], ['3:4', '竖屏 3:4'], ['9:16', '竖屏 9:16'], ['4:3', '横屏 4:3'], ['16:9', '横屏 16:9']];
+function sizeCanvas() {
+  if (!baseImg) return;
+  let ratio = baseImg.naturalWidth / baseImg.naturalHeight;
+  if (S.aspect !== 'orig') { const [a, b] = S.aspect.split(':').map(Number); ratio = a / b; }
+  if (ratio >= 1) { cv.width = 1200; cv.height = Math.round(1200 / ratio); } else { cv.height = 1200; cv.width = Math.round(1200 * ratio); }
+}
+// Photo framing: z = 1 shows the whole photo; coverZoom() fills the canvas
+function photoRect(W, H) {
+  const b = baseCache.canvas; if (!b) return { x: 0, y: 0, w: W, h: H };
+  const k = Math.min(W / b.width, H / b.height) * S.photo.z, w = b.width * k, h = b.height * k;
+  return { x: W / 2 + S.photo.x * W - w / 2, y: H / 2 + S.photo.y * H - h / 2, w, h };
+}
+function coverZoom() { const b = baseCache.canvas; if (!b) return 1; const W = cv.width, H = cv.height; return Math.max(W / b.width, H / b.height) / Math.min(W / b.width, H / b.height); }
+function defaultPhoto() { const c = coverZoom(); return { z: c <= 1.34 ? c : 1, x: 0, y: 0 }; }
+// Keep stickers glued to the same spot of the photo while the canvas or framing changes
+function remapItems(change) {
+  const W0 = cv.width, H0 = cv.height, p0 = photoRect(W0, H0);
+  const rel = S.items.map(it => ({ u: (it.x * W0 - p0.x) / p0.w, v: (it.y * H0 - p0.y) / p0.h, k: it.s * W0 / p0.w }));
+  change();
+  const W = cv.width, H = cv.height, p = photoRect(W, H);
+  S.items.forEach((it, i) => { const q = rel[i]; it.x = (p.x + q.u * p.w) / W; it.y = (p.y + q.v * p.h) / H; it.s = q.k * p.w / W; });
+}
+const clampPan = v => Math.max(-.75, Math.min(.75, v));
+function setZoom(z) { remapItems(() => { S.photo.z = Math.max(.5, Math.min(4, z)); }); syncPhotoUI(); dirty(); }
+function setAspect(a) {
+  if (a === S.aspect) return; pushHistory();
+  remapItems(() => { S.aspect = a; sizeCanvas(); S.photo = defaultPhoto(); });
+  syncPhotoUI(); dirty();
+}
+function syncPhotoUI() {
+  $('aspectBar').querySelectorAll('[data-aspect]').forEach(b => b.setAttribute('aria-pressed', b.dataset.aspect === S.aspect));
+  $('zoom').value = Math.round(S.photo.z * 100);
+}
 function loadDog(d) {
   const img = new Image();
   img.onload = () => {
-    const max = 1200, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    cv.width = Math.round(img.naturalWidth * sc); cv.height = Math.round(img.naturalHeight * sc);
-    baseImg = img; baseCache.key = ''; dirty(); refreshFilterThumbs();
+    baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI(); renderTarget();
+    if (openingPending && (builtinPhotos.length || !fetchingPhotos)) { openingPending = false; openingOutfit(); }
+    dirty(); refreshFilterThumbs();
   };
-  img.onerror = () => toast('这张狗狗照片加载失败，换一张试试');
+  img.onerror = () => {
+    // A listed built-in photo that is missing should not leave an empty stage
+    if (builtinPhotos.includes(d)) { builtinPhotos = builtinPhotos.filter(x => x !== d); S.dogKey = ''; rebuildDogs(); return; }
+    toast('这张照片加载失败，换一张试试');
+  };
   img.src = d.src;
 }
 
@@ -530,8 +583,12 @@ function filteredBase(img, f, w, h) {
   return c;
 }
 function getBase() {
-  const k = S.dogKey + '|' + S.filter + '|' + cv.width;
-  if (baseCache.key !== k && baseImg) { baseCache = { key: k, canvas: filteredBase(baseImg, S.filter, cv.width, cv.height) }; }
+  if (!baseImg) return null;
+  const k = S.dogKey + '|' + S.filter;
+  if (baseCache.key !== k) {
+    const sc = Math.min(1, 1200 / Math.max(baseImg.naturalWidth, baseImg.naturalHeight));
+    baseCache = { key: k, canvas: filteredBase(baseImg, S.filter, Math.round(baseImg.naturalWidth * sc), Math.round(baseImg.naturalHeight * sc)), blur: null };
+  }
   return baseCache.canvas;
 }
 
@@ -621,7 +678,23 @@ function render(x, ui) {
   const W = cv.width, H = cv.height;
   x.clearRect(0, 0, W, H);
   const base = getBase();
-  if (base) x.drawImage(base, 0, 0, W, H); else { x.fillStyle = '#120c18'; x.fillRect(0, 0, W, H); }
+  if (base) {
+    const pr = photoRect(W, H);
+    if (pr.x > .5 || pr.y > .5 || pr.x + pr.w < W - .5 || pr.y + pr.h < H - .5) {
+      // Fill uncovered space with a soft, blurred stretch of the photo
+      if (!baseCache.blur) {
+        const t = document.createElement('canvas'); t.width = 20; t.height = Math.max(1, Math.round(20 * base.height / base.width));
+        t.getContext('2d').drawImage(base, 0, 0, t.width, t.height);
+        const u = document.createElement('canvas'); u.width = 120; u.height = Math.round(120 * t.height / t.width);
+        const ux = u.getContext('2d'); ux.imageSmoothingQuality = 'high'; ux.drawImage(t, 0, 0, u.width, u.height); baseCache.blur = u;
+      }
+      const cs = Math.max(W / base.width, H / base.height);
+      x.save(); x.imageSmoothingQuality = 'high';
+      x.drawImage(baseCache.blur, (W - base.width * cs) / 2, (H - base.height * cs) / 2, base.width * cs, base.height * cs);
+      x.fillStyle = 'rgba(35,26,92,.22)'; x.fillRect(0, 0, W, H); x.restore();
+    }
+    x.drawImage(base, pr.x, pr.y, pr.w, pr.h);
+  } else { x.fillStyle = '#3a2785'; x.fillRect(0, 0, W, H); }
   const now = performance.now();
   S.items.forEach(it => {
     const { s, w: w0, h: h0 } = itemGeom(it); if (!s) return;
@@ -656,12 +729,25 @@ function uiScale() { const r = cv.getBoundingClientRect(); return r.width ? cv.w
 
 /* ---------- Adding items ---------- */
 const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+// Costume default positions are authored on a 1000px square with the dog's eyes at (500, 455) and a 470px-wide head
+function placement(s, target = S.target) {
+  const W = cv.width, H = cv.height;
+  if (['hat', 'face', 'body'].includes(s.cat)) {
+    const p = photoRect(W, H), heads = currentDog().heads;
+    if (heads && heads.length) {
+      const a = heads[Math.min(target, heads.length - 1)], k = a.w * p.w / 470;
+      return { x: (p.x + a.x * p.w + (s.pos[0] * 1000 - 500) * k) / W, y: (p.y + a.y * p.h + (s.pos[1] * 1000 - 455) * k) / H, s: s.w * 1000 * k / W };
+    }
+    return { x: (p.x + s.pos[0] * p.w) / W, y: (p.y + s.pos[1] * p.h) / H, s: s.w * p.w / W };
+  }
+  return { x: s.pos[0], y: s.pos[1], s: s.w * Math.min(1, H / W) };
+}
 function addItem(k) {
   const s = getSticker(k); if (!s) return;
   pushHistory();
   const jitter = s.cat === 'decor' || s.cat === 'emoji' ? (Math.random() - .5) * .06 : 0;
-  const ar = cv.width / cv.height;
-  S.items.push({ k, x: s.pos[0] + jitter, y: s.pos[1] + jitter, s: ar > 1 ? s.w / Math.min(ar, 1.6) : s.w, r: 0, f: false, born: reduceMotion ? 0 : performance.now() });
+  const pl = placement(s);
+  S.items.push({ k, x: pl.x + jitter, y: pl.y + jitter, s: pl.s, r: 0, f: false, born: reduceMotion ? 0 : performance.now() });
   S.sel = S.items.length - 1; dirty();
 }
 
@@ -686,13 +772,18 @@ function hitTest(p) {
 cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   const p = toCanvas(e); pointers.set(e.pointerId, p);
+  if (pointers.size === 2 && S.sel < 0 && baseCache.canvas) {
+    const [a, b] = [...pointers.values()];
+    drag = { mode: 'pzoom', d0: Math.hypot(b.x - a.x, b.y - a.y), z0: S.photo.z, pushed: false };
+    return;
+  }
   if (pointers.size === 2 && S.sel >= 0) {
     const [a, b] = [...pointers.values()], it = S.items[S.sel];
     drag = { mode: 'pinch', d0: Math.hypot(b.x - a.x, b.y - a.y), a0: Math.atan2(b.y - a.y, b.x - a.x), s0: it.s, r0: it.r };
     return;
   }
   const hit = hitTest(p);
-  if (!hit) { S.sel = -1; drag = null; dirty(); return; }
+  if (!hit) { S.sel = -1; drag = baseCache.canvas ? { mode: 'pan', px: p.x, py: p.y, pushed: false } : null; if (drag) cv.style.cursor = 'grabbing'; dirty(); return; }
   if (hit.mode === 'delete') { removeSel(); return; }
   pushHistory();
   S.sel = hit.i; const it = S.items[hit.i];
@@ -708,6 +799,14 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (!pointers.has(e.pointerId)) return;
   const p = toCanvas(e); pointers.set(e.pointerId, p);
+  if (drag && (drag.mode === 'pan' || drag.mode === 'pzoom')) {
+    if (!drag.pushed) { pushHistory(); drag.pushed = true; }
+    if (drag.mode === 'pan') {
+      const dx = (p.x - drag.px) / cv.width, dy = (p.y - drag.py) / cv.height; drag.px = p.x; drag.py = p.y;
+      remapItems(() => { S.photo.x = clampPan(S.photo.x + dx); S.photo.y = clampPan(S.photo.y + dy); }); dirty();
+    } else if (pointers.size >= 2) { const [a, b] = [...pointers.values()]; setZoom(drag.z0 * Math.hypot(b.x - a.x, b.y - a.y) / drag.d0); }
+    return;
+  }
   if (!drag || S.sel < 0) return;
   const it = S.items[S.sel];
   if (drag.mode === 'move') { it.x = p.x / cv.width - drag.ox; it.y = p.y / cv.height - drag.oy; }
@@ -722,10 +821,11 @@ cv.addEventListener('pointermove', e => {
   }
   dirty();
 });
-const endPtr = e => { pointers.delete(e.pointerId); if (pointers.size < 2 && drag?.mode === 'pinch') drag = null; if (!pointers.size) { drag = null; cv.style.cursor = 'grab'; } };
+const endPtr = e => { pointers.delete(e.pointerId); if (pointers.size < 2 && (drag?.mode === 'pinch' || drag?.mode === 'pzoom')) drag = null; if (!pointers.size) { drag = null; cv.style.cursor = 'grab'; } };
 cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('wheel', e => {
-  if (S.sel < 0) return; e.preventDefault();
+  if (S.sel < 0) { if (e.ctrlKey && baseCache.canvas) { e.preventDefault(); setZoom(S.photo.z * Math.exp(-e.deltaY * .01)); } return; }
+  e.preventDefault();
   const it = S.items[S.sel];
   if (e.shiftKey) it.r += e.deltaY * .003; else it.s = Math.max(.02, Math.min(2.5, it.s * Math.exp(-e.deltaY * .0015)));
   dirty();
@@ -845,17 +945,28 @@ $('panel').addEventListener('click', e => {
 
 /* ---------- Random outfit ---------- */
 const pick = a => a[Math.floor(Math.random() * a.length)];
+function openingOutfit() {
+  const on = (k, t, extra = {}) => ({ k, ...placement(REG[k], t), r: 0, f: false, ...extra });
+  const two = (currentDog().heads || []).length > 1;
+  S.items = two
+    ? [on('svg:witch', 0, { r: -.08 }), on('svg:vampirecollar', 0), on('svg:pumpkinhat', 1), on('svg:bowtie', 1), on('svg:bats', 0), on('svg:jack', 0)]
+    : [on('svg:witch', 0, { r: -.08 }), on('svg:vampirecollar', 0), on('svg:candypail', 0), on('svg:jack', 0)];
+}
 function randomOutfit() {
   pushHistory();
   const ids = c => CATALOG.filter(x => x[2] === c).map(x => 'svg:' + x[0]);
-  const mk = k => { const s = REG[k]; return { k, x: s.pos[0], y: s.pos[1], s: s.w, r: 0, f: false }; };
+  const mk = k => ({ k, ...placement(REG[k]), r: 0, f: false });
   const items = [];
   const decor = ids('decor').sort(() => Math.random() - .5).slice(0, 2 + Math.floor(Math.random() * 2));
   decor.forEach(k => items.push(mk(k)));
   const bodies = ids('body'), big = ['svg:ghostsheet', 'svg:pumpkinsuit'];
-  const body = pick(Math.random() < .12 ? big : bodies.filter(k => !big.includes(k)));
-  if (!big.includes(body)) { items.push(mk(pick(ids('hat')))); if (Math.random() < .7) items.push(mk(pick(ids('face')))); }
-  items.push(mk(body));
+  const n = Math.max(1, (currentDog().heads || []).length);
+  for (let t = 0; t < n; t++) {
+    const on = k => ({ k, ...placement(REG[k], t), r: 0, f: false });
+    const body = pick(Math.random() < .12 ? big : bodies.filter(k => !big.includes(k) && REG[k].w < .5));
+    if (!big.includes(body)) { items.push(on(pick(ids('hat')))); if (Math.random() < .6) items.push(on(pick(ids('face')))); }
+    items.push(on(body));
+  }
   S.items = items; S.sel = -1;
   S.filter = Math.random() < .5 ? pick(FILTERS)[0] : 'none';
   S.frame = Math.random() < .4 ? pick(FRAMES.slice(1))[0] : 'none';
@@ -863,9 +974,18 @@ function randomOutfit() {
 }
 
 /* ---------- Dogs ---------- */
+function renderTarget() {
+  const heads = currentDog().heads || [], bar = $('targetBar');
+  bar.hidden = heads.length < 2;
+  if (heads.length < 2) return;
+  if (S.target >= heads.length) S.target = 0;
+  const label = (h, i) => h.name || (heads.length === 2 ? ['左边狗狗', '右边狗狗'][i] : `第 ${i + 1} 只`);
+  bar.innerHTML = '<span>新装扮穿到：</span>' + heads.map((h, i) => `<button class="btn chip" data-target="${i}" aria-pressed="${i === S.target}">${esc(label(h, i))}</button>`).join('');
+}
 function renderDogs() {
   const list = dogs.map(d => `<button class="dog" data-key="${esc(d.key)}" aria-pressed="${d.key === S.dogKey}"><img src="${esc(d.src)}" alt=""><span>${esc(d.name)}</span></button>`).join('');
   $('dogs').innerHTML = list + `<button class="dog upload" id="mineBtn"><div class="ph">📷</div><span>上传我的宠物</span></button>`;
+  renderTarget();
   const real = officeDogs.length || builtinPhotos.length;
   $('dogNote').textContent = real ? '也可以上传你自己的宠物照片' : '先用示例狗狗玩，或上传你的宠物';
 }
@@ -876,6 +996,7 @@ $('dogs').addEventListener('click', e => {
 });
 function selectDog(key) {
   const d = dogs.find(x => x.key === key); if (!d) return;
+  if (key !== S.dogKey) undoStack.length = 0, $('undoBtn').disabled = true;
   S.dogKey = key; renderDogs(); loadDog(d);
 }
 function readImageFile(file, max) {
@@ -898,16 +1019,18 @@ $('fileMine').addEventListener('change', async e => {
     rebuildDogs(); selectDog('mine');
   } catch { toast('读不了这张图片，换一张 JPG 或 PNG 试试'); }
 });
-let builtinPhotos = [];
+let builtinPhotos = [], fetchingPhotos = location.protocol !== 'file:';
 function loadBuiltinPhotos() {
-  if (location.protocol === 'file:') return;
+  if (!fetchingPhotos) return;
   fetch('photos/photos.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).then(list => {
     builtinPhotos = (Array.isArray(list) ? list : []).filter(p => p && p.file)
-      .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file) }));
-    if (!builtinPhotos.length) return;
+      .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file),
+        heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, name: String(h.name || '') })) : null }));
+    fetchingPhotos = false;
+    if (!builtinPhotos.length) { if (openingPending && baseImg) { openingPending = false; openingOutfit(); dirty(); } return; }
     if (S.dogKey.startsWith('demo') && !officeDogs.length) { S.dogKey = builtinPhotos[0].key; loadDog(builtinPhotos[0]); }
     rebuildDogs();
-  }).catch(() => {});
+  }).catch(() => { fetchingPhotos = false; if (openingPending && baseImg) { openingPending = false; openingOutfit(); dirty(); } });
 }
 function rebuildDogs() {
   dogs = (officeDogs.length ? officeDogs : builtinPhotos.length ? builtinPhotos : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
@@ -1096,6 +1219,13 @@ $('sortTop').onclick = () => { sortMode = 'top'; $('sortTop').setAttribute('aria
 $('undoBtn').onclick = undo;
 $('clearBtn').onclick = () => { if (!S.items.length && S.frame === 'none' && S.filter === 'none') return; pushHistory(); S.items = []; S.sel = -1; S.frame = 'none'; S.filter = 'none'; dirty(); refreshPanel(); };
 $('randomBtn').onclick = randomOutfit;
+$('targetBar').addEventListener('click', e => { const b = e.target.closest('[data-target]'); if (b) { S.target = +b.dataset.target; renderTarget(); } });
+$('aspectBar').innerHTML = ASPECTS.map(([id, name]) => `<button class="btn chip" data-aspect="${id}" aria-pressed="${id === S.aspect}">${name}</button>`).join('');
+$('aspectBar').addEventListener('click', e => { const b = e.target.closest('[data-aspect]'); if (b) setAspect(b.dataset.aspect); });
+$('zoom').addEventListener('pointerdown', () => pushHistory());
+$('zoom').addEventListener('input', e => setZoom(e.target.value / 100));
+$('fitBtn').onclick = () => { pushHistory(); remapItems(() => { S.photo = { z: 1, x: 0, y: 0 }; }); syncPhotoUI(); dirty(); };
+$('coverBtn').onclick = () => { pushHistory(); remapItems(() => { S.photo = { z: coverZoom(), x: 0, y: 0 }; }); syncPhotoUI(); dirty(); };
 function syncBorderBtn() { $('borderBtn').setAttribute('aria-pressed', S.border); $('grainBtn').setAttribute('aria-pressed', S.grain); }
 $('grainBtn').onclick = () => { pushHistory(); S.grain = !S.grain; syncBorderBtn(); dirty(); };
 $('borderBtn').onclick = () => { pushHistory(); S.border = !S.border; syncBorderBtn(); dirty(); };
@@ -1109,12 +1239,7 @@ window.addEventListener('resize', dirty);
 $('undoBtn').disabled = true;
 renderTabs(); refreshPanel(); renderDogs(); loadDog(currentDog());
 // Opening example outfit so the stage shows what the tool does
-S.items = [
-  { k: 'svg:witch', x: .5, y: .22, s: .48, r: -.08, f: false },
-  { k: 'svg:vampirecollar', x: .5, y: .7, s: .6, r: 0, f: false },
-  { k: 'svg:candypail', x: .8, y: .88, s: .2, r: .08, f: false },
-  { k: 'svg:jack', x: .17, y: .9, s: .22, r: 0, f: false },
-];
+let openingPending = true;
 fontsPromise.then(dirty);
 if (location.hash === '#gallery') setView('gallery');
 initCaps();
