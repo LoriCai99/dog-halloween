@@ -105,7 +105,7 @@ body.dragging,body.dragging *{cursor:grabbing!important;user-select:none}
 .tile{border:0;background:var(--lav-2);border-radius:24px;padding:10px 4px 8px;cursor:pointer;color:var(--ink);font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
 .tile:hover{background:var(--paper);animation:wiggle .45s ease-in-out}
 @keyframes wiggle{25%{transform:rotate(-4deg) scale(1.05)}75%{transform:rotate(3deg) scale(1.05)}}
-.tile img,.tile canvas{width:58px;height:58px;object-fit:contain}
+.tile img,.tile canvas{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 0 1.5px #2a2f6e88)}
 .tile span{font-size:12.5px;font-weight:800;line-height:1.25;text-align:center;color:var(--ink)}
 .tile[aria-pressed="true"]{background:var(--yellow)}
 .tile.emoji{font-size:36px;line-height:1;padding:12px 4px}
@@ -236,7 +236,7 @@ const PAL = {};
   .forEach(([from, to]) => from.split(' ').forEach(c => PAL[c] = to));
 const repaint = svg => svg.replace(/#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g, m => PAL[m.toLowerCase()] || m);
 // Soft "gooey" rounding: blur the silhouette, re-threshold it, and clip the art to it, so every outer corner turns into a round blob edge
-const NO_ROUND = new Set(['web', 'spider', 'monocle', 'stitches', 'spiders']);
+const NO_ROUND = new Set(['web', 'spider', 'monocle', 'stitches', 'spiders', 'starband', 'ghostballoon', 'bonenecklace', 'lights', 'bunting', 'mouse']);
 const sv = (w, h, inner, round = true) => { const m = Math.max(w, h), r = Math.min(4.6, m * .022).toFixed(2); return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><filter id="w" x="-6%" y="-6%" width="112%" height="112%">${round ? `<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0" result="a"/><feGaussianBlur in="a" stdDeviation="${r}" result="b"/><feComponentTransfer in="b" result="goo"><feFuncA type="linear" slope="18" intercept="-8"/></feComponentTransfer><feComposite in="SourceGraphic" in2="goo" operator="in" result="src"/>` : ''}<feTurbulence type="fractalNoise" baseFrequency="${(6 / m).toFixed(4)}" numOctaves="2" seed="7" result="t"/><feDisplacementMap in="${round ? 'src' : 'SourceGraphic'}" in2="t" scale="${(m * .016).toFixed(1)}"/></filter></defs><g filter="url(#w)" stroke="none" stroke-linejoin="round" stroke-linecap="round">${repaint(inner)}</g></svg>`; };
 const star = (cx, cy, r, fill, n = 5) => {
   let p = [];
@@ -361,12 +361,64 @@ const CATALOG = [
   ['bone', '狗骨头', 'decor', 220, 100, .24, [0.24, 0.9], `<path d="M50 34 Q30 4 14 26 Q2 44 22 50 Q2 56 14 74 Q30 96 50 66 L170 66 Q190 96 206 74 Q218 56 198 50 Q218 44 206 26 Q190 4 170 34 Z" fill="#fff6e6"/>${kawaii(110,50,11)}`],
   ['paws', '爪印小路', 'decor', 240, 200, .3, [0.8, 0.86], `${paw(40,170,1.2,'#ff8a1f')}${paw(100,130,1.2,'#ff8a1f')}${paw(150,90,1.2,'#ff8a1f')}${paw(210,40,1.2,'#ff8a1f')}`],
   ['coffin', '小棺材', 'decor', 140, 240, .16, [0.86, 0.78], `<path d="M44 6 L96 6 L134 64 L110 234 L30 234 L6 64 Z" fill="#5a3a2a"/><path d="M70 50 L70 150 M44 84 L96 84" stroke="#e8b84a" stroke-width="10"/>`],
+  // 侧脸 / 侧身 / 趴着：单侧的耳朵角翅膀、侧面眼镜、能贴合各种角度的装扮
+  ['side_horn', '单只恶魔角', 'side', 80, 110, .09, [0.42, 0.2], `<path d="M18 104 Q2 58 30 6 Q44 50 66 90 Q46 110 18 104 Z" fill="#d9442f"/>`],
+  ['side_catear', '单只猫耳', 'side', 100, 110, .12, [0.42, 0.2], `<path d="M8 104 Q12 30 40 6 Q74 40 92 96 Q50 112 8 104 Z" fill="#2a2f6e"/><path d="M28 92 Q30 46 42 28 Q62 52 72 88 Z" fill="#f2a0b8"/>`],
+  ['side_batear', '单只蝙蝠耳', 'side', 100, 120, .12, [0.42, 0.2], `<path d="M10 114 L30 6 L92 96 Q50 122 10 114 Z" fill="#2a2f6e"/><path d="M28 98 L38 38 L72 92 Z" fill="#7a5fd6"/>`],
+  ['side_witch', '侧面女巫帽', 'side', 240, 170, .46, [0.5, 0.22], `<ellipse cx="120" cy="146" rx="112" ry="16" fill="#2a2f6e"/><path d="M60 146 Q70 80 110 40 Q150 10 222 18 Q170 40 158 80 L176 146 Z" fill="#6a4fc9"/><path d="M64 124 L172 124 L176 146 L60 146 Z" fill="#e8742a"/><rect x="104" y="122" width="26" height="24" rx="5" fill="#ffc21a"/>`],
+  ['side_beret', '斜戴贝雷帽', 'side', 200, 120, .34, [0.52, 0.22], `<path d="M14 92 Q10 40 80 26 Q160 14 190 60 Q196 92 150 100 Q90 112 14 92 Z" fill="#d9442f"/><path d="M96 28 Q98 10 112 6" fill="none" stroke="#2a2f6e" stroke-width="8"/><path d="M22 90 Q100 106 172 94" fill="none" stroke="#a8321f" stroke-width="9"/>`],
+  ['side_minitop', '斜戴小礼帽', 'side', 130, 130, .18, [0.6, 0.18], `<g transform="rotate(-16 65 70)"><ellipse cx="65" cy="104" rx="56" ry="12" fill="#2a2f6e"/><rect x="34" y="30" width="62" height="74" rx="8" fill="#2a2f6e"/><rect x="34" y="76" width="62" height="14" fill="#e8742a"/>${star(80, 52, 8, '#ffc21a')}</g>`],
+  ['side_glasses', '侧面眼镜', 'side', 200, 90, .24, [0.44, 0.42], `<path d="M84 44 L190 34 L196 50" fill="none" stroke="#2a2f6e" stroke-width="8"/><circle cx="48" cy="46" r="36" fill="#86c8ec" fill-opacity=".35" stroke="#2a2f6e" stroke-width="9"/>`],
+  ['side_shades', '侧面墨镜', 'side', 200, 80, .24, [0.44, 0.42], `<path d="M86 30 L192 26 L196 42" fill="none" stroke="#2a2f6e" stroke-width="8"/><path d="M8 20 L94 20 Q94 70 50 72 Q12 72 8 20 Z" fill="#2a2f6e"/><path d="M22 28 L44 28 L28 50 Z" fill="#fff" fill-opacity=".35"/>`],
+  ['side_fang', '单颗獠牙', 'side', 60, 70, .05, [0.46, 0.55], `<path d="M8 6 L52 6 Q40 30 30 66 Q18 30 8 6 Z" fill="#f4f0ff"/>`],
+  ['side_mustache', '侧脸小胡子', 'side', 130, 60, .14, [0.42, 0.5], `<path d="M122 20 Q90 10 62 24 Q40 34 22 26 Q8 20 6 32 Q16 54 52 50 Q90 46 122 34 Z" fill="#2a2f6e"/>`],
+  ['side_bone', '叼着的骨头', 'side', 200, 80, .2, [0.46, 0.57], `<path d="M44 30 Q26 4 12 24 Q2 40 20 44 Q2 50 12 66 Q26 86 44 58 L156 58 Q174 86 188 66 Q198 50 180 44 Q198 40 188 24 Q174 4 156 30 Z" fill="#fff6e6"/>`],
+  ['side_bow', '斜角领结', 'side', 150, 90, .2, [0.5, 0.63], `<path d="M86 45 L10 10 Q0 45 10 80 Z" fill="#e8742a"/><path d="M86 45 L136 22 Q144 45 136 68 Z" fill="#c95a20"/><rect x="74" y="31" width="24" height="28" rx="8" fill="#ffc21a"/>`],
+  ['side_collar', '侧面项圈', 'side', 260, 120, .4, [0.52, 0.63], `<path d="M14 40 Q130 88 246 40 L246 62 Q130 110 14 62 Z" fill="#7a5fd6"/><path d="M150 92 L150 100" stroke="#2a2f6e" stroke-width="5"/>${pumpkin(150, 104, 14, 11)}`],
+  ['side_scarf', '南瓜围巾', 'side', 260, 230, .48, [0.5, 0.68], `<path d="M14 40 Q130 96 246 40 L240 80 Q130 132 20 80 Z" fill="#e8742a"/><path d="M160 84 L200 214 L160 220 L132 98 Z" fill="#e8742a"/><path d="M62 62 L70 102 M112 76 L114 114 M200 66 L192 104 M150 136 L186 130 M160 172 L196 166" stroke="#ffc21a" stroke-width="11"/><path d="M164 220 L162 228 M176 218 L176 228 M188 216 L190 226" stroke="#e8742a" stroke-width="6"/>`],
+  ['side_cape', '飘动披风', 'side', 340, 260, .7, [0.62, 0.82], `<path d="M40 20 Q20 120 30 250 Q140 230 330 250 Q260 160 210 30 Q130 6 40 20 Z" fill="#d9442f"/><path d="M40 20 Q130 6 210 30 Q150 54 40 20 Z" fill="#a8321f"/><circle cx="56" cy="26" r="13" fill="#ffc21a"/>`],
+  ['side_batwing', '单只蝙蝠翅膀', 'side', 220, 160, .36, [0.8, 0.8], `<path d="M14 150 L80 24 Q110 52 210 34 Q190 76 200 116 Q170 104 160 134 Q130 114 112 150 Q80 124 14 150 Z" fill="#2a2f6e"/><path d="M20 146 L120 60 M20 146 L180 88 M20 146 L150 120" fill="none" stroke="#7a5fd6" stroke-width="3"/>`],
+  ['side_angelwing', '单只天使翅膀', 'side', 210, 180, .36, [0.8, 0.8], `<path d="M200 110 Q120 20 20 30 Q50 60 40 80 Q70 90 60 110 Q90 118 80 140 Q120 150 120 170 Q170 160 200 110 Z" fill="#f4f0ff"/><path d="M180 112 Q120 80 60 70 M170 124 Q120 110 82 112" fill="none" stroke="#c7b8f0" stroke-width="4"/>`],
+  ['side_fairywing', '单只精灵翅膀', 'side', 200, 220, .3, [0.8, 0.8], `<ellipse cx="110" cy="76" rx="84" ry="50" transform="rotate(-30 110 76)" fill="#86c8ec" fill-opacity=".6"/><ellipse cx="96" cy="160" rx="52" ry="34" transform="rotate(25 96 160)" fill="#a68bf0" fill-opacity=".6"/>${spark(150, 50, 9, '#fff')}`],
+  ['side_sheet', '侧面幽灵披单', 'side', 380, 320, .85, [0.55, 0.6], `<path d="M120 20 Q260 0 330 90 Q370 160 372 300 Q340 284 316 304 Q290 284 262 306 Q236 284 208 306 Q180 284 152 306 Q124 284 96 306 Q70 288 40 304 Q30 200 50 120 Q70 40 120 20 Z" fill="#f4f0ff" fill-opacity=".96"/><ellipse cx="270" cy="122" rx="16" ry="28" fill="#2a2f6e"/><ellipse cx="318" cy="130" rx="12" ry="24" fill="#2a2f6e"/>`],
+  ['side_blanket', '趴姿幽灵小被子', 'side', 420, 220, .85, [0.5, 0.78], `<path d="M30 70 Q60 10 210 14 Q360 10 392 70 L410 200 Q382 184 356 204 Q330 184 304 204 Q278 184 252 204 Q226 184 200 204 Q174 184 148 204 Q122 184 96 204 Q70 184 44 204 Q30 190 14 200 Z" fill="#f4f0ff" fill-opacity=".95"/>${kawaii(210, 92, 26)}`],
+  ['side_pillow', '南瓜抱枕', 'side', 220, 160, .3, [0.72, 0.82], `${pumpkin(110, 92, 100, 62)}${kawaii(110, 92, 22, true)}`],
+
+  // 更多头饰
+  ['frankhair', '科学怪人发型', 'hat', 220, 120, .44, [0.5, 0.25], `<path d="M14 110 L14 30 Q14 12 32 12 L188 12 Q206 12 206 30 L206 110 L182 92 L166 112 L148 90 L130 112 L110 90 L90 112 L72 90 L54 112 L38 92 Z" fill="#2a2f6e"/><rect x="14" y="12" width="192" height="18" rx="9" fill="#3a2785"/>`],
+  ['vamphair', '吸血鬼发型', 'hat', 240, 110, .46, [0.5, 0.27], `<path d="M10 100 Q14 20 120 14 Q226 20 230 100 Q190 60 150 64 Q130 70 120 104 Q110 70 90 64 Q50 60 10 100 Z" fill="#2a2f6e"/><path d="M60 40 Q120 24 180 40" fill="none" stroke="#3a2785" stroke-width="6"/>`],
+  ['clownwig', '彩虹爆炸头', 'hat', 300, 170, .58, [0.5, 0.24], (() => { const c = ['#e8742a', '#7a5fd6', '#ffc21a', '#f2a0b8', '#9fd18c', '#86c8ec']; let s = ''; for (let i = 0; i < 11; i++) { const a = Math.PI * (1.05 + i * .09); s += `<circle cx="${(150 + Math.cos(a) * 112).toFixed(1)}" cy="${(160 + Math.sin(a) * 112).toFixed(1)}" r="34" fill="${c[i % 6]}"/>`; } return s; })()],
+  ['pumpkinhead', '南瓜头套', 'hat', 280, 250, .56, [0.5, 0.44], `${pumpkin(140, 132, 132, 108)}${kawaii(140, 128, 40)}`],
+  ['hood', '女巫兜帽', 'hat', 320, 320, .68, [0.5, 0.44], `<path fill-rule="evenodd" d="M160 6 Q200 30 230 40 Q306 70 306 190 Q306 270 282 314 L38 314 Q14 270 14 190 Q14 60 120 36 Q140 30 160 6 Z ${ell(160, 182, 102, 112)}" fill="#6a4fc9"/>`],
+  ['headghost', '头顶小幽灵', 'hat', 130, 150, .16, [0.52, 0.17], `<g transform="scale(.8)">${ghostShape('#f4f0ff')}<ellipse cx="62" cy="76" rx="7" ry="12" fill="#2a2f6e"/><ellipse cx="98" cy="76" rx="7" ry="12" fill="#2a2f6e"/></g>`],
+  ['headbat', '头顶小蝙蝠', 'hat', 180, 100, .2, [0.5, 0.17], `${bat(90, 56, 4, '#3a2785')}${kawaii(90, 50, 6)}`],
+  ['headspider', '头顶小蜘蛛', 'hat', 130, 100, .13, [0.56, 0.2], `<path d="M44 52 L14 30 M44 60 L8 62 M44 68 L16 90 M86 52 L116 30 M86 60 L122 62 M86 68 L114 90" fill="none" stroke="#2a2f6e" stroke-width="6"/><ellipse cx="65" cy="62" rx="28" ry="24" fill="#2a2f6e"/>${kawaii(65, 60, 9)}`],
+  ['starband', '星星发箍', 'hat', 240, 170, .44, [0.5, 0.21], `<path d="M20 164 Q120 84 220 164" fill="none" stroke="#2a2f6e" stroke-width="10"/><path d="M76 128 Q62 104 80 92 Q96 80 78 66 Q64 54 80 46" fill="none" stroke="#c7b8f0" stroke-width="5"/><path d="M164 128 Q178 104 160 92 Q144 80 162 66 Q176 54 160 46" fill="none" stroke="#c7b8f0" stroke-width="5"/>${star(80, 32, 26, '#ffc21a')}${star(160, 32, 26, '#ffc21a')}`],
+  ['candyclip', '糖果发夹', 'hat', 140, 70, .14, [0.64, 0.24], `<path d="M36 35 L4 14 L8 56 Z M104 35 L136 14 L132 56 Z" fill="#7a5fd6"/><circle cx="70" cy="35" r="32" fill="#a68bf0"/><path d="M50 14 L90 58 M44 34 L72 64 M66 6 L98 40" stroke="#f4f0ff" stroke-width="6" stroke-opacity=".8"/>`],
+
+  // 更多服装道具
+  ['bonenecklace', '骨头项链', 'body', 260, 130, .46, [0.5, 0.64], `<path d="M10 14 Q130 150 250 14" fill="none" stroke="#7f74b8" stroke-width="5"/>${[.15, .32, .5, .68, .85].map(t => { const x = 10*(1-t)**2 + 2*130*t*(1-t) + 250*t*t, y = 14*(1-t)**2 + 2*150*t*(1-t) + 14*t*t; return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((t - .5) * -70).toFixed(0)}) scale(.3)"><path d="M44 30 Q26 4 12 24 Q2 40 20 44 Q2 50 12 66 Q26 86 44 58 L156 58 Q174 86 188 66 Q198 50 180 44 Q198 40 188 24 Q174 4 156 30 Z" transform="translate(-100 -45)" fill="#f4f0ff"/></g>`; }).join('')}`],
+  ['pumpkintag', '南瓜吊牌项圈', 'body', 240, 150, .42, [0.5, 0.63], `<path d="M10 20 Q120 70 230 20 L230 42 Q120 92 10 42 Z" fill="#2a2f6e"/><path d="M120 64 L120 76" stroke="#ffc21a" stroke-width="6"/>${pumpkin(120, 108, 34, 28)}${kawaii(120, 108, 9)}`],
+  ['lantern', '南瓜提灯', 'body', 130, 220, .18, [0.8, 0.78], `<path d="M65 6 L65 70" stroke="#a0643a" stroke-width="8"/><path d="M30 80 Q65 40 100 80" fill="none" stroke="#2a2f6e" stroke-width="6"/>${pumpkin(65, 150, 52, 44)}${kawaii(65, 150, 13)}`],
+  ['ghostballoon', '幽灵气球', 'body', 150, 300, .2, [0.82, 0.48], `<path d="M75 176 Q60 220 82 250 Q100 276 76 298" fill="none" stroke="#c7b8f0" stroke-width="4"/><path d="M75 10 Q140 10 140 90 Q140 150 75 176 Q10 150 10 90 Q10 10 75 10 Z" fill="#f4f0ff"/><ellipse cx="56" cy="84" rx="8" ry="14" fill="#2a2f6e"/><ellipse cx="94" cy="84" rx="8" ry="14" fill="#2a2f6e"/><path d="M66 114 Q75 106 84 114" fill="none" stroke="#2a2f6e" stroke-width="5"/>`],
+  ['spellbook', '魔法书', 'body', 170, 130, .22, [0.22, 0.86], `<path d="M14 24 Q50 8 85 24 L85 120 Q50 104 14 120 Z" fill="#7a5fd6"/><path d="M85 24 Q120 8 156 24 L156 120 Q120 104 85 120 Z" fill="#6a4fc9"/><path d="M85 24 L85 120" stroke="#3a2785" stroke-width="5"/>${star(50, 66, 18, '#ffc21a')}${spark(122, 64, 14, '#f4f0ff')}`],
+  ['tie', '万圣领带', 'body', 90, 230, .1, [0.5, 0.74], `<path d="M30 8 L60 8 L66 32 L45 44 L24 32 Z" fill="#c95a20"/><path d="M28 40 L62 40 L80 190 L45 226 L10 190 Z" fill="#e8742a"/><path d="M24 80 L66 64 M18 128 L72 108 M14 176 L76 152" stroke="#2a2f6e" stroke-width="10"/>`],
+  ['poncho', '南瓜斗篷', 'body', 340, 220, .72, [0.5, 0.76], `<path fill-rule="evenodd" d="M170 14 Q300 30 330 200 L10 200 Q40 30 170 14 Z ${ell(170, 40, 46, 24)}" fill="#e8742a"/>${[30, 70, 110, 150, 190, 230, 270, 310].map(x => `<path d="M${x} 198 L${x} 216" stroke="#ffc21a" stroke-width="7"/>`).join('')}${kawaii(170, 128, 26)}`],
+
+  // 更多场景装饰
+  ['bunting', '南瓜彩旗', 'decor', 600, 130, 1, [0.5, 0.07], `<path d="M0 20 Q300 70 600 20" fill="none" stroke="#2a2f6e" stroke-width="4"/>${Array.from({ length: 9 }, (_, i) => { const t = (i + .5) / 9, x = 600 * t, y = 20 + 4 * 25 * t * (1 - t) * 1; return `<path d="M${(x - 26).toFixed(1)} ${(y - 2).toFixed(1)} L${(x + 26).toFixed(1)} ${(y - 2).toFixed(1)} L${x.toFixed(1)} ${(y + 60).toFixed(1)} Z" fill="${['#e8742a', '#7a5fd6', '#ffc21a'][i % 3]}"/>`; }).join('')}`],
+  ['lights', '南瓜串灯', 'decor', 600, 70, 1, [0.5, 0.04], `<path d="M0 10 Q300 46 600 10" fill="none" stroke="#2a2f6e" stroke-width="4"/>${Array.from({ length: 10 }, (_, i) => { const t = (i + .5) / 10, x = 600 * t, y = 10 + 4 * 18 * t * (1 - t); return `<path d="M${x.toFixed(1)} ${y.toFixed(1)} L${x.toFixed(1)} ${(y + 14).toFixed(1)}" stroke="#2a2f6e" stroke-width="3"/>${pumpkin(+x.toFixed(1), +(y + 30).toFixed(1), 13, 11)}`; }).join('')}`],
+  ['candyrain', '糖果雨', 'decor', 300, 300, .36, [0.5, 0.3], `${[[40, 40, '#e8742a'], [150, 30, '#7a5fd6'], [250, 60, '#f2a0b8'], [90, 130, '#9fd18c'], [210, 150, '#ffc21a'], [50, 230, '#7a5fd6'], [160, 240, '#e8742a'], [260, 250, '#86c8ec']].map(([x, y, c]) => `<path d="M${x - 22} ${y} L${x - 34} ${y - 10} L${x - 34} ${y + 10} Z M${x + 22} ${y} L${x + 34} ${y - 10} L${x + 34} ${y + 10} Z" fill="${c}"/><circle cx="${x}" cy="${y}" r="18" fill="${c}"/>`).join('')}${spark(110, 80, 12, '#f4f0ff')}${spark(240, 200, 10, '#f4f0ff')}`],
+  ['mouse', '小老鼠', 'decor', 160, 110, .16, [0.2, 0.88], `<path d="M130 80 Q160 70 156 40" fill="none" stroke="#7f74b8" stroke-width="5"/><path d="M20 90 Q20 30 80 30 Q140 30 140 90 Z" fill="#b7aee0"/><circle cx="54" cy="34" r="20" fill="#b7aee0"/><circle cx="54" cy="34" r="11" fill="#f2a0b8"/><circle cx="20" cy="74" r="6" fill="#f2a0b8"/><ellipse cx="44" cy="62" rx="5" ry="8" fill="#2a2f6e"/>`],
+  ['owl', '猫头鹰', 'decor', 140, 170, .15, [0.86, 0.3], `<path d="M20 40 L30 6 L54 28 Q70 22 86 28 L110 6 L120 40 Q132 90 120 140 Q70 176 20 140 Q8 90 20 40 Z" fill="#7a5fd6"/><ellipse cx="70" cy="120" rx="34" ry="32" fill="#c7b8f0"/><circle cx="48" cy="62" r="20" fill="#f4f0ff"/><circle cx="92" cy="62" r="20" fill="#f4f0ff"/><ellipse cx="48" cy="64" rx="7" ry="10" fill="#2a2f6e"/><ellipse cx="92" cy="64" rx="7" ry="10" fill="#2a2f6e"/><path d="M62 82 L70 96 L78 82 Z" fill="#ffc21a"/>`],
+  ['bonepile', '骨头堆', 'decor', 240, 130, .26, [0.8, 0.9], `${[[70, 90, -15], [160, 92, 20], [118, 60, 4]].map(([x, y, r]) => `<g transform="translate(${x} ${y}) rotate(${r}) scale(.55) translate(-100 -45)"><path d="M44 30 Q26 4 12 24 Q2 40 20 44 Q2 50 12 66 Q26 86 44 58 L156 58 Q174 86 188 66 Q198 50 180 44 Q198 40 188 24 Q174 4 156 30 Z" fill="#f4f0ff"/></g>`).join('')}`],
 ];
 
 const CATS = [
   { id: 'hat', name: '🎩 帽子头饰', c: '#ffb066' },
   { id: 'face', name: '👓 脸部', c: '#ffb3d1' },
   { id: 'body', name: '🧥 服装道具', c: '#d4c2ff' },
+  { id: 'side', name: '📐 侧脸侧身', c: '#c9f0ff' },
   { id: 'decor', name: '🌙 场景装饰', c: '#bfe3ff' },
   { id: 'text', name: '💬 文字', c: '#a6ead3' },
   { id: 'emoji', name: '🍬 表情贴纸', c: '#ffe08a' },
@@ -687,7 +739,7 @@ function drawGrain(x, W, H) {
   x.save(); x.globalCompositeOperation = 'overlay'; x.globalAlpha = .16; x.scale(k, k);
   x.fillStyle = x.createPattern(grainTile, 'repeat'); x.fillRect(0, 0, W / k, H / k); x.restore();
 }
-function itemGeom(it) { const s = getSticker(it.k); const w = it.s * cv.width; return { s, w, h: w * (s ? s.ratio : 1) }; }
+function itemGeom(it) { const s = getSticker(it.k); const w = it.s * cv.width; return { s, w: w * (it.sx || 1), h: w * (s ? s.ratio : 1) }; }
 function render(x, ui) {
   const W = cv.width, H = cv.height;
   x.clearRect(0, 0, W, H);
@@ -746,7 +798,7 @@ const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').mat
 // Costume default positions are authored on a 1000px square with the dog's eyes at (500, 455) and a 470px-wide head
 function placement(s, target = 0) {
   const W = cv.width, H = cv.height;
-  if (['hat', 'face', 'body'].includes(s.cat)) {
+  if (['hat', 'face', 'body', 'side'].includes(s.cat)) {
     const p = photoRect(W, H), heads = currentDog().heads;
     if (heads && heads.length) {
       const a = heads[Math.min(target, heads.length - 1)], k = a.w * p.w / 470;
@@ -769,7 +821,7 @@ function addItem(k, at) {
     // Dropped onto the photo: size it for the dog nearest the drop point
     const p = photoRect(cv.width, cv.height), d = heads.map(h => Math.hypot((p.x + h.x * p.w) / cv.width - at.x, (p.y + h.y * p.h) / cv.height - at.y));
     t = d.indexOf(Math.min(...d));
-  } else if (heads.length > 1 && ['hat', 'face', 'body'].includes(s.cat)) {
+  } else if (heads.length > 1 && ['hat', 'face', 'body', 'side'].includes(s.cat)) {
     // Several dogs in the photo: give each new piece to the dog wearing the fewest of that kind
     const worn = heads.map((_, i) => S.items.filter(it => it.t === i && getSticker(it.k)?.cat === s.cat).length);
     t = worn.indexOf(Math.min(...worn));
@@ -881,6 +933,7 @@ const SEL_ACTIONS = [
   ['➕ 放大', it => it.s = Math.min(2.5, it.s * 1.15)], ['➖ 缩小', it => it.s = Math.max(.02, it.s / 1.15)],
   ['⟲ 左转', it => it.r -= Math.PI / 18], ['⟳ 右转', it => it.r += Math.PI / 18],
   ['⇋ 翻转', it => it.f = !it.f],
+  ['↔ 变窄', it => it.sx = Math.max(.3, (it.sx || 1) / 1.15)], ['↔ 变宽', it => it.sx = Math.min(2.5, (it.sx || 1) * 1.15)],
   ['⬆ 上移一层', (it, i) => { if (i < S.items.length - 1) { S.items.splice(i, 1); S.items.splice(i + 1, 0, it); S.sel = i + 1; } }],
   ['⬇ 下移一层', (it, i) => { if (i > 0) { S.items.splice(i, 1); S.items.splice(i - 1, 0, it); S.sel = i - 1; } }],
   ['⧉ 复制', it => { S.items.push({ ...it, x: it.x + .04, y: it.y + .04 }); S.sel = S.items.length - 1; }],
@@ -928,8 +981,8 @@ function filterThumb(f) {
 function refreshFilterThumbs() { if (activeCat === 'filter') refreshPanel(); }
 function refreshPanel() {
   const p = $('panel');
-  if (['hat', 'face', 'body', 'decor'].includes(activeCat)) {
-    p.innerHTML = `<div class="grid">${CATALOG.filter(x => x[2] === activeCat).map(([id, name]) => `<button class="tile" data-k="svg:${id}" title="${esc(name)}"><img src="${REG['svg:' + id].src}" alt=""><span>${esc(name)}</span></button>`).join('')}</div>`;
+  if (['hat', 'face', 'body', 'side', 'decor'].includes(activeCat)) {
+    p.innerHTML = (activeCat === 'side' ? '<p class="note" style="margin:0 0 10px">侧脸、侧身、趴着的毛孩子用这些。正面的装扮也能用：选中后点「变窄」再转一点，就能贴合斜角的脸。</p>' : '') + `<div class="grid">${CATALOG.filter(x => x[2] === activeCat).map(([id, name]) => `<button class="tile" data-k="svg:${id}" title="${esc(name)}"><img src="${REG['svg:' + id].src}" alt=""><span>${esc(name)}</span></button>`).join('')}</div>`;
   } else if (activeCat === 'emoji') {
     p.innerHTML = `<div class="grid">${EMOJIS.map(e => `<button class="tile emoji" data-k="emoji:${e}">${e}</button>`).join('')}</div>`;
   } else if (activeCat === 'text') {
