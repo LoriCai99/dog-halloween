@@ -1,5 +1,6 @@
 <title>毛孩子万圣变装间</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8E%83%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Creepster&family=Nunito:wght@600;700;800&display=swap">
 <style>
 /* Layout: a haunted hallway at night — violet walls, a yellow-lit stage like an open doorway, lavender drawers of costumes; everything flat, round and grainy like a risograph print */
@@ -14,6 +15,7 @@
   color-scheme:dark;
 }
 html,body{background:var(--wall);color:var(--on-wall)}
+html{min-height:100%;background:var(--grain),var(--wall)}
 body{font-family:var(--body);font-size:14px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px;
   background:var(--grain),radial-gradient(900px 520px at 50% -8%,#5a40bb 0%,transparent 70%),var(--wall)}
@@ -56,6 +58,18 @@ h1 .p{color:var(--lav)}
 .btn[aria-pressed="false"]{opacity:.7}
 .btn:focus-visible,.views button:focus-visible,.tile:focus-visible,.tab:focus-visible,.dog:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
 .rack .chip[aria-pressed="false"]{background:var(--paper);color:var(--ink)}
+.tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y}
+.tile img,.tile canvas{-webkit-user-drag:none;pointer-events:none}
+.drag-ghost{position:fixed;left:0;top:0;z-index:90;pointer-events:none;display:grid;place-items:center;font-size:52px;line-height:1;filter:drop-shadow(0 8px 12px #1d155088)}
+.drag-ghost img{height:84px;max-width:240px;object-fit:contain}
+body.dragging,body.dragging *{cursor:grabbing!important;user-select:none}
+#stage.drop-target{outline:4px dashed var(--yellow);outline-offset:4px}
+@media (max-width:900px){
+  .studio{display:flex;flex-direction:column;gap:12px}
+  .stage-col{display:contents}
+  .stage{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;min-height:0;padding:10px;border-radius:26px;box-shadow:inset 0 0 0 5px #9c8ad8,0 12px 24px -10px #1d1550}
+  #stage{max-height:38vh}
+}
 .framebar{display:flex;flex-direction:column;gap:8px}
 .chip{font-size:13.5px;padding:5px 12px}
 .chip[aria-pressed="false"]{opacity:1;background:var(--wall-deep);color:var(--on-wall)}
@@ -153,7 +167,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
         <div class="bar photobar"><label for="zoom">照片大小</label><input type="range" id="zoom" min="50" max="400" value="100"><button class="btn chip" id="fitBtn">完整</button><button class="btn chip" id="coverBtn">铺满</button></div>
       </div>
       <div class="selbar" id="selbar"></div>
-      <p class="hint">点装扮加到画面上 · 拖动移动 · 拖右下角圆点缩放/旋转 · 拖空白处移动照片，双指缩放照片 · 方向键微调，Delete 删除</p>
+      <p class="hint">点击或拖动装扮到照片上（手机上长按再拖）· 拖动移动 · 拖右下角圆点缩放/旋转 · 拖空白处移动照片，双指缩放照片 · 方向键微调，Delete 删除</p>
       <div class="bar">
         <button class="btn" id="undoBtn">↶ 撤销</button>
         <button class="btn" id="clearBtn">清空装扮</button>
@@ -613,7 +627,7 @@ function drawFrame(x, f, W, H) {
     x.strokeStyle = 'rgba(0,0,0,.15)'; x.lineWidth = 2; x.strokeRect(b, b, W - b*2, H - b - bot);
     x.fillStyle = '#4b33a8'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.font = `${Math.round(bot*.36)}px ${FONT_SPOOKY}`; x.fillText('Happy Howl-o-ween', W/2, H - bot*.58);
-    x.font = `${Math.round(bot*.17)}px ${FONT_DISPLAY}`; x.fillStyle = '#7f74b8'; x.fillText(`${currentDog().name.replace('示例·', '')} · 2026 万圣节`, W/2, H - bot*.2);
+    x.font = `${Math.round(bot*.17)}px ${FONT_DISPLAY}`; x.fillStyle = '#7f74b8'; x.fillText(`${currentDog().name.replace('示例·', '').replace(/\s*(横屏|竖屏)$/, '')} · 2026 万圣节`, W/2, H - bot*.2);
   } else if (f === 'wanted') {
     const b = M*.06, top = M*.2, bot = M*.17;
     x.fillStyle = '#e8d3a6'; x.beginPath(); x.rect(0, 0, W, H); x.rect(b, top, W - b*2, H - top - bot); x.fill('evenodd');
@@ -731,21 +745,27 @@ function placement(s, target = 0) {
     }
     return { x: (p.x + s.pos[0] * p.w) / W, y: (p.y + s.pos[1] * p.h) / H, s: s.w * p.w / W };
   }
-  return { x: s.pos[0], y: s.pos[1], s: s.w * Math.min(1, H / W) };
+  return { x: s.pos[0], y: s.pos[1], s: s.w >= 1 ? 1.04 : s.w * Math.min(1, H / W) };
 }
-function addItem(k) {
+function addItem(k, at) {
   const s = getSticker(k); if (!s) return;
   pushHistory();
-  const jitter = s.cat === 'decor' || s.cat === 'emoji' ? (Math.random() - .5) * .06 : 0;
+  const jitter = !at && (s.cat === 'decor' || s.cat === 'emoji') ? (Math.random() - .5) * .06 : 0;
   const heads = currentDog().heads || [];
   let t = 0;
-  if (heads.length > 1 && ['hat', 'face', 'body'].includes(s.cat)) {
+  if (at && heads.length > 1 && baseCache.canvas) {
+    // Dropped onto the photo: size it for the dog nearest the drop point
+    const p = photoRect(cv.width, cv.height), d = heads.map(h => Math.hypot((p.x + h.x * p.w) / cv.width - at.x, (p.y + h.y * p.h) / cv.height - at.y));
+    t = d.indexOf(Math.min(...d));
+  } else if (heads.length > 1 && ['hat', 'face', 'body'].includes(s.cat)) {
     // Several dogs in the photo: give each new piece to the dog wearing the fewest of that kind
     const worn = heads.map((_, i) => S.items.filter(it => it.t === i && getSticker(it.k)?.cat === s.cat).length);
     t = worn.indexOf(Math.min(...worn));
   }
   const pl = placement(s, t);
-  S.items.push({ k, x: pl.x + jitter, y: pl.y + jitter, s: pl.s, r: 0, f: false, t, born: reduceMotion ? 0 : performance.now() });
+  let x = at ? at.x : pl.x + jitter, y = at ? at.y : pl.y + jitter;
+  for (let i = 0; !at && i < 8 && S.items.some(it => Math.abs(it.x - x) < .02 && Math.abs(it.y - y) < .02); i++) { x += .035; y += .035; }
+  S.items.push({ k, x, y, s: pl.s, r: 0, f: false, t, born: reduceMotion ? 0 : performance.now() });
   S.sel = S.items.length - 1; dirty();
 }
 
@@ -854,7 +874,7 @@ function renderSelbar() {
   const st = S.sel >= 0 ? 'on' : S.items.length ? 'off' : 'empty';
   if (st === selbarState) return; selbarState = st;
   const bar = $('selbar'); bar.innerHTML = '';
-  if (S.sel < 0) { bar.innerHTML = `<span class="label">${S.items.length ? '点画面上的装扮来选中它' : '从右边挑一件装扮开始吧 →'}</span>`; return; }
+  if (S.sel < 0) { bar.innerHTML = `<span class="label">${S.items.length ? '点画面上的装扮来选中它' : '点一下装扮，或者把它拖到照片上'}</span>`; return; }
   bar.insertAdjacentHTML('beforeend', '<span class="label">选中的装扮：</span>');
   SEL_ACTIONS.forEach(([label, fn]) => {
     const b = document.createElement('button'); b.className = 'btn'; b.textContent = label;
@@ -934,7 +954,63 @@ function refreshPanel() {
     });
   }
 }
+/* ---------- Drag a costume from the rack onto the photo ---------- */
+let dragAdd = null;
+function moveGhost(x, y) {
+  dragAdd.ghost.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+  const r = cv.getBoundingClientRect();
+  dragAdd.over = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  cv.classList.toggle('drop-target', dragAdd.over); dragAdd.cx = x; dragAdd.cy = y;
+}
+function startDrag(x, y) {
+  const g = document.createElement('div'); g.className = 'drag-ghost';
+  const im = dragAdd.tile.querySelector('img');
+  if (im) { const c = new Image(); c.src = im.src; g.appendChild(c); } else g.textContent = dragAdd.tile.textContent.trim();
+  document.body.appendChild(g); document.body.classList.add('dragging');
+  dragAdd.ghost = g; dragAdd.active = true; moveGhost(x, y);
+}
+function endDrag(drop = true) {
+  if (!dragAdd) return;
+  clearTimeout(dragAdd.timer);
+  if (dragAdd.active) {
+    if (drop && dragAdd.over) { const r = cv.getBoundingClientRect(); addItem(dragAdd.k, { x: (dragAdd.cx - r.left) / r.width, y: (dragAdd.cy - r.top) / r.height }); }
+    dragAdd.ghost.remove(); cv.classList.remove('drop-target'); document.body.classList.remove('dragging');
+    dragAdd.dropped = true;
+  }
+  const done = dragAdd; dragAdd = null;
+  if (done.dropped) { lastDragEnd = performance.now(); }
+}
+let lastDragEnd = 0;
+$('panel').addEventListener('dragstart', e => e.preventDefault());
+// Mouse and pen: dragging starts once the pointer moves a few pixels
+$('panel').addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch' || e.button !== 0) return;
+  const t = e.target.closest('.tile[data-k]'); if (!t) return;
+  dragAdd = { k: t.dataset.k, tile: t, sx: e.clientX, sy: e.clientY, active: false };
+});
+window.addEventListener('pointermove', e => {
+  if (!dragAdd || e.pointerType === 'touch') return;
+  if (!dragAdd.active && Math.hypot(e.clientX - dragAdd.sx, e.clientY - dragAdd.sy) > 6) startDrag(e.clientX, e.clientY);
+  if (dragAdd.active) moveGhost(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') endDrag(); });
+// Touch: press and hold a costume, then drag it; a quick swipe still scrolls the list
+$('panel').addEventListener('touchstart', e => {
+  const t = e.target.closest('.tile[data-k]'); if (!t || e.touches.length > 1) return;
+  const p = e.touches[0];
+  dragAdd = { k: t.dataset.k, tile: t, sx: p.clientX, sy: p.clientY, active: false };
+  dragAdd.timer = setTimeout(() => { if (dragAdd && !dragAdd.active) { startDrag(dragAdd.sx, dragAdd.sy); try { navigator.vibrate?.(12); } catch {} } }, 300);
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+  if (!dragAdd) return;
+  const p = e.touches[0];
+  if (dragAdd.active) { e.preventDefault(); moveGhost(p.clientX, p.clientY); }
+  else if (Math.hypot(p.clientX - dragAdd.sx, p.clientY - dragAdd.sy) > 10) { clearTimeout(dragAdd.timer); dragAdd = null; }
+}, { passive: false });
+window.addEventListener('touchend', e => { if (dragAdd?.active) e.preventDefault(); endDrag(); }, { passive: false });
+window.addEventListener('touchcancel', () => endDrag(false));
 $('panel').addEventListener('click', e => {
+  if (performance.now() - lastDragEnd < 400) return;
   const t = e.target.closest('.tile'); if (!t) return;
   if (t.dataset.k) addItem(t.dataset.k);
   else if (t.dataset.frame) { pushHistory(); S.frame = t.dataset.frame; dirty(); $('panel').querySelectorAll('[data-frame]').forEach(b => b.setAttribute('aria-pressed', b.dataset.frame === S.frame)); }
@@ -978,7 +1054,10 @@ $('dogs').addEventListener('click', e => {
 });
 function selectDog(key) {
   const d = dogs.find(x => x.key === key); if (!d) return;
-  if (key !== S.dogKey) undoStack.length = 0, $('undoBtn').disabled = true;
+  if (key !== S.dogKey) {
+    undoStack.length = 0; $('undoBtn').disabled = true;
+    if (S.items.length) { S.items = []; S.sel = -1; toast('换了照片，装扮已清空'); }
+  }
   S.dogKey = key; renderDogs(); loadDog(d);
 }
 function readImageFile(file, max) {
