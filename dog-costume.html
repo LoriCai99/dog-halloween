@@ -66,11 +66,25 @@ h1 .p{color:var(--lav)}
 .drag-ghost img{height:84px;max-width:240px;object-fit:contain}
 body.dragging,body.dragging *{cursor:grabbing!important;user-select:none}
 #stage.drop-target{outline:4px dashed var(--yellow);outline-offset:4px}
+.upload-cta{display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;min-height:52vh;border:4px dashed #9c8ad8;border-radius:26px;background:transparent;color:var(--on-wall);font-family:var(--body);cursor:pointer;padding:24px;text-align:center}
+.upload-cta:hover,.upload-cta.over{border-color:var(--yellow);background:#ffffff0d}
+.upload-cta:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}
+.upload-cta .big{font-size:64px;line-height:1}
+.upload-cta strong{font-family:var(--display);font-weight:400;font-size:28px;color:#fff}
+.upload-cta span{color:var(--on-wall-muted);font-weight:700;font-size:14px}
+.upload-cta .btn{color:var(--ink);pointer-events:none;font-size:17px;padding:10px 22px}
+.stage.no-pic .upload-cta{display:flex}
+.stage.no-pic #stage{display:none}
+body.no-photo .framebar,body.no-photo .selbar,body.no-photo .hint,body.no-photo .stage-col>.bar{display:none}
 @media (max-width:900px){
   .studio{display:flex;flex-direction:column;gap:12px}
   .stage-col{display:contents}
   .stage{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;min-height:0;padding:10px;border-radius:26px;box-shadow:inset 0 0 0 5px #9c8ad8,0 12px 24px -10px #1d1550}
   #stage{max-height:38vh}
+  .upload-cta{min-height:30vh}
+  body.no-photo .stage{position:static}
+  .upload-cta .big{font-size:48px}
+  .upload-cta strong{font-size:22px}
 }
 .framebar{display:flex;flex-direction:column;gap:8px}
 .chip{font-size:13.5px;padding:5px 12px}
@@ -153,7 +167,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
     <div class="floaties" id="floaties" aria-hidden="true"></div>
     <div style="position:relative">
       <h1><span>毛</span><span>孩</span><span>子</span><span class="o">万</span><span class="o">圣</span><span class="p">变</span><span>装</span><span>间</span></h1>
-      <p class="sub">给办公室狗狗（或者你家的毛孩子）挑一身万圣装扮，拖动、缩放、旋转，保存下来发给大家。</p>
+      <p class="sub">上传你家毛孩子的照片，挑一身万圣装扮，拖动、缩放、旋转，保存下来发给大家。</p>
     </div>
     <div class="views" role="group" aria-label="切换视图">
       <button id="vStudio" aria-pressed="true">🎃 变装</button>
@@ -163,7 +177,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
 
   <div id="studioView" class="studio">
     <div class="stage-col">
-      <div class="stage"><canvas id="stage" width="1000" height="1000" tabindex="0" aria-label="变装画布：方括号键切换选中的装扮，方向键移动，Delete 删除"></canvas></div>
+      <div class="stage no-pic" id="stageBox"><button class="upload-cta" id="uploadCta" type="button"><div class="big">📷</div><strong>上传你的毛孩子</strong><span>猫猫狗狗兔子都可以 · 也可以把照片直接拖到这里</span><span class="btn primary">选择照片</span><span>照片只在你的浏览器里处理，不会上传</span></button><canvas id="stage" width="1000" height="1000" tabindex="0" aria-label="变装画布：方括号键切换选中的装扮，方向键移动，Delete 删除"></canvas></div>
       <div class="framebar">
         <div class="bar" id="aspectBar" role="group" aria-label="画面比例"></div>
         <div class="bar photobar"><label for="zoom">照片大小</label><input type="range" id="zoom" min="50" max="400" value="100"><button class="btn chip" id="fitBtn">完整</button><button class="btn chip" id="coverBtn">铺满</button></div>
@@ -184,7 +198,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
 
     <div class="rack">
       <section>
-        <h2>选一张照片 <small id="dogNote"></small></h2>
+        <h2>你的毛孩子 <small id="dogNote"></small></h2>
         <div class="dogs" id="dogs"></div>
         <div id="manageBox"></div>
       </section>
@@ -195,7 +209,7 @@ input[type=text],select{background:var(--paper);color:var(--ink);border:0;border
 
   <div id="galleryView" hidden>
     <div class="gallery-head">
-      <p class="sub" id="galleryNote">所有人发布的狗狗万圣造型，点 ♥ 投票。</p>
+      <p class="sub" id="galleryNote">所有人发布的毛孩子万圣造型，点 ♥ 投票。</p>
       <div class="views" role="group" aria-label="排序">
         <button id="sortNew" aria-pressed="true">最新</button>
         <button id="sortTop" aria-pressed="false">最受欢迎</button>
@@ -530,31 +544,9 @@ function getSticker(k) {
   return r;
 }
 
-/* ---------- Placeholder dogs ---------- */
-function placeholderDog(c1, c2, c3) {
-  const ghost = (x, y, k, o) => `<g transform="translate(${x} ${y}) scale(${k})" opacity="${o}"><path d="M80 10 Q140 10 144 80 L150 170 Q134 158 120 172 Q106 158 92 172 Q78 158 64 172 Q50 158 36 172 Q22 158 10 170 L16 80 Q20 10 80 10 Z" fill="#c7b8f0"/><ellipse cx="62" cy="76" rx="7" ry="12" fill="#6f5fc0"/><ellipse cx="98" cy="76" rx="7" ry="12" fill="#6f5fc0"/></g>`;
-  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000"><defs><filter id="w"><feTurbulence type="fractalNoise" baseFrequency=".006" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="12"/></filter></defs>
-  <rect width="1000" height="1000" fill="#4b33a8"/><rect y="800" width="1000" height="200" fill="#8a78c8"/>
-  <rect x="250" y="210" width="500" height="600" fill="#9c8ad8"/><rect x="285" y="245" width="430" height="565" fill="#ffc21a"/>
-  <path d="M285 810 L715 810 L800 1000 L200 1000 Z" fill="#ffc21a"/>
-  ${ghost(40, 90, 1.1, .7)}${ghost(800, 300, .9, .6)}${ghost(70, 560, .7, .5)}
-  <g filter="url(#w)"><ellipse cx="500" cy="985" rx="250" ry="34" fill="#d99a14"/>
-  <ellipse cx="500" cy="820" rx="200" ry="160" fill="${c1}"/><ellipse cx="500" cy="840" rx="105" ry="120" fill="${c2}"/>
-  <ellipse cx="415" cy="960" rx="62" ry="38" fill="${c2}"/><ellipse cx="585" cy="960" rx="62" ry="38" fill="${c2}"/>
-  <path d="M300 330 Q205 320 215 520 Q235 600 310 565 Q345 470 335 370 Z" fill="${c3}"/><path d="M700 330 Q795 320 785 520 Q765 600 690 565 Q655 470 665 370 Z" fill="${c3}"/>
-  <ellipse cx="500" cy="470" rx="235" ry="200" fill="${c1}"/><ellipse cx="500" cy="560" rx="112" ry="78" fill="${c2}"/></g>
-  <ellipse cx="405" cy="455" rx="22" ry="36" fill="#2a2f6e"/><ellipse cx="595" cy="455" rx="22" ry="36" fill="#2a2f6e"/>
-  <ellipse cx="500" cy="528" rx="34" ry="22" fill="#2a2f6e"/><path d="M470 572 Q485 590 500 574 Q515 590 530 572" fill="none" stroke="#2a2f6e" stroke-width="9" stroke-linecap="round"/>
-  <ellipse cx="350" cy="530" rx="40" ry="20" fill="#f2a0b8" fill-opacity=".6"/><ellipse cx="650" cy="530" rx="40" ry="20" fill="#f2a0b8" fill-opacity=".6"/></svg>`);
-}
-const PLACEHOLDERS = [
-  { key: 'demo1', name: '示例·焦糖', src: placeholderDog('#e98f4f', '#fbeedd', '#c96a35'), demo: true },
-  { key: 'demo2', name: '示例·芝麻', src: placeholderDog('#5a5285', '#f4f0ff', '#3a3466'), demo: true },
-];
-
 /* ---------- State ---------- */
-const S = { dogKey: 'demo1', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true, aspect: 'orig', photo: { z: 1, x: 0, y: 0 } };
-let dogs = PLACEHOLDERS.slice(), officeDogs = [], myPhoto = null;
+const S = { dogKey: '', filter: 'none', frame: 'none', items: [], sel: -1, border: true, grain: true, aspect: 'orig', photo: { z: 1, x: 0, y: 0 } };
+let dogs = [], officeDogs = [], myPhoto = null;
 const undoStack = [];
 const snap = () => JSON.stringify({ filter: S.filter, frame: S.frame, items: S.items, border: S.border, grain: S.grain, aspect: S.aspect, photo: S.photo });
 let lastBurst = 0;
@@ -566,7 +558,8 @@ function undo() { const h = undoStack.pop(); if (!h) return; const o = JSON.pars
 const cv = $('stage'), ctx = cv.getContext('2d');
 let baseImg = null, baseCache = { key: '', canvas: null };
 
-function currentDog() { return dogs.find(d => d.key === S.dogKey) || dogs[0]; }
+function currentDog() { return dogs.find(d => d.key === S.dogKey) || { name: '毛孩子', heads: null }; }
+const hasPhoto = () => !!baseImg;
 const ASPECTS = [['orig', '原图'], ['1:1', '方形 1:1'], ['3:4', '竖屏 3:4'], ['9:16', '竖屏 9:16'], ['4:3', '横屏 4:3'], ['16:9', '横屏 16:9']];
 function sizeCanvas() {
   if (!baseImg) return;
@@ -608,12 +601,10 @@ function loadDog(d) {
   const img = new Image();
   img.onload = () => {
     if (S.dogKey !== d.key) return; // a newer photo was picked while this one loaded
-    baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI();
+    baseImg = img; baseCache.key = ''; sizeCanvas(); getBase(); S.photo = defaultPhoto(); syncPhotoUI(); syncEmpty();
     dirty(); refreshFilterThumbs();
   };
   img.onerror = () => {
-    // A listed built-in photo that is missing should not leave an empty stage
-    if (builtinPhotos.includes(d)) { builtinPhotos = builtinPhotos.filter(x => x !== d); rebuildDogs(); return; }
     if (S.dogKey === d.key) toast('这张照片加载失败，换一张试试');
   };
   img.src = d.src;
@@ -691,7 +682,7 @@ function drawFrame(x, f, W, H) {
     x.strokeStyle = 'rgba(0,0,0,.15)'; x.lineWidth = 2; x.strokeRect(b, b, W - b*2, H - b - bot);
     x.fillStyle = '#4b33a8'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.font = `${Math.round(bot*.36)}px ${FONT_SPOOKY}`; x.fillText('Happy Howl-o-ween', W/2, H - bot*.58);
-    x.font = `${Math.round(bot*.17)}px ${FONT_DISPLAY}`; x.fillStyle = '#7f74b8'; x.fillText(`${currentDog().name.replace('示例·', '').replace(/\s*(横屏|竖屏)$/, '')} · 2026 万圣节`, W/2, H - bot*.2);
+    x.font = `${Math.round(bot*.17)}px ${FONT_DISPLAY}`; x.fillStyle = '#7f74b8'; x.fillText(`${currentDog().name} · 2026 万圣节`, W/2, H - bot*.2);
   } else if (f === 'wanted') {
     const b = M*.06, top = M*.2, bot = M*.17;
     x.fillStyle = '#e8d3a6'; x.beginPath(); x.rect(0, 0, W, H); x.rect(b, top, W - b*2, H - top - bot); x.fill('evenodd');
@@ -812,6 +803,7 @@ function placement(s, target = 0) {
   return { x: s.pos[0], y: s.pos[1], s: s.w >= 1 ? 1.04 : s.w * Math.min(1, H / W) };
 }
 function addItem(k, at) {
+  if (!needPhoto()) return;
   const s = getSticker(k); if (!s) return;
   pushHistory();
   const jitter = !at && (s.cat === 'decor' || s.cat === 'emoji') ? (Math.random() - .5) * .06 : 0;
@@ -1082,7 +1074,7 @@ window.addEventListener('touchend', e => { if (dragAdd?.active) e.preventDefault
 window.addEventListener('touchcancel', () => endDrag(false));
 $('panel').addEventListener('click', e => {
   if (performance.now() - lastDragEnd < 400) return;
-  const t = e.target.closest('.tile'); if (!t) return;
+  const t = e.target.closest('.tile'); if (!t || !needPhoto()) return;
   if (t.dataset.k) addItem(t.dataset.k);
   else if (t.dataset.frame) { pushHistory(); S.frame = t.dataset.frame; dirty(); $('panel').querySelectorAll('[data-frame]').forEach(b => b.setAttribute('aria-pressed', b.dataset.frame === S.frame)); }
   else if (t.dataset.filter) { pushHistory(); S.filter = t.dataset.filter; dirty(); $('panel').querySelectorAll('[data-filter]').forEach(b => b.setAttribute('aria-pressed', b.dataset.filter === S.filter)); }
@@ -1091,6 +1083,7 @@ $('panel').addEventListener('click', e => {
 /* ---------- Random outfit ---------- */
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function randomOutfit() {
+  if (!needPhoto()) return;
   pushHistory();
   const ids = c => CATALOG.filter(x => x[2] === c).map(x => 'svg:' + x[0]);
   const mk = k => ({ k, ...placement(REG[k]), r: 0, f: false });
@@ -1114,9 +1107,8 @@ function randomOutfit() {
 /* ---------- Dogs ---------- */
 function renderDogs() {
   const list = dogs.map(d => `<button class="dog" data-key="${esc(d.key)}" aria-pressed="${d.key === S.dogKey}"><img src="${esc(d.src)}" alt=""><span>${esc(d.name)}</span></button>`).join('');
-  $('dogs').innerHTML = list + `<button class="dog upload" id="mineBtn"><div class="ph">📷</div><span>上传我的宠物</span></button>`;
-  const real = officeDogs.length || builtinPhotos.length;
-  $('dogNote').textContent = real ? '也可以上传你自己的宠物照片' : '先用示例狗狗玩，或上传你的宠物';
+  $('dogs').innerHTML = list + `<button class="dog upload" id="mineBtn"><div class="ph">📷</div><span>${myPhoto ? '换一张' : '上传照片'}</span></button>`;
+  $('dogNote').textContent = dogs.length ? '点「换一张」可以换别的照片' : '先上传一张宠物照片，再挑装扮';
 }
 $('dogs').addEventListener('click', e => {
   const b = e.target.closest('.dog'); if (!b) return;
@@ -1143,29 +1135,39 @@ function readImageFile(file, max) {
     img.src = url;
   });
 }
-$('fileMine').addEventListener('change', async e => {
-  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+async function usePhotoFile(f) {
+  if (!f) return;
   try {
     const c = await readImageFile(f, 1200);
-    myPhoto = { key: 'mine', name: '我的宠物', src: c.toDataURL('image/jpeg', .9) };
-    rebuildDogs(); selectDog('mine');
+    // A fresh key per upload so a second photo counts as a photo change
+    myPhoto = { key: 'mine' + Date.now(), name: '我的毛孩子', src: c.toDataURL('image/jpeg', .9) };
+    rebuildDogs(); selectDog(myPhoto.key);
   } catch { toast('读不了这张图片，换一张 JPG 或 PNG 试试'); }
+}
+$('fileMine').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; usePhotoFile(f); });
+$('uploadCta').onclick = () => $('fileMine').click();
+// Drop an image file anywhere on the stage
+const stageBox = $('stageBox'), isFileDrag = e => [...(e.dataTransfer?.types || [])].includes('Files');
+stageBox.addEventListener('dragover', e => { if (!isFileDrag(e)) return; e.preventDefault(); $('uploadCta').classList.add('over'); cv.classList.add('drop-target'); });
+stageBox.addEventListener('dragleave', e => { if (stageBox.contains(e.relatedTarget)) return; $('uploadCta').classList.remove('over'); cv.classList.remove('drop-target'); });
+stageBox.addEventListener('drop', e => {
+  if (!isFileDrag(e)) return; e.preventDefault(); $('uploadCta').classList.remove('over'); cv.classList.remove('drop-target');
+  const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/'));
+  if (f) usePhotoFile(f); else toast('拖进来的不是图片');
 });
-let builtinPhotos = [], fetchingPhotos = location.protocol !== 'file:';
-function loadBuiltinPhotos() {
-  if (!fetchingPhotos) return;
-  fetch('photos/photos.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).then(list => {
-    builtinPhotos = (Array.isArray(list) ? list : []).filter(p => p && p.file)
-      .map((p, i) => ({ key: 'photo' + i, name: String(p.name || '办公室狗狗'), src: 'photos/' + encodeURIComponent(p.file),
-        heads: Array.isArray(p.heads) ? p.heads.filter(h => h && isFinite(h.x) && isFinite(h.y) && isFinite(h.w)).map(h => ({ x: +h.x, y: +h.y, w: +h.w, neck: h.neck == null ? NaN : +h.neck, name: String(h.name || '') })) : null }));
-    fetchingPhotos = false;
-    if (builtinPhotos.length) rebuildDogs();
-  }).catch(() => { fetchingPhotos = false; });
+function syncEmpty() { const empty = !hasPhoto(); stageBox.classList.toggle('no-pic', empty); document.body.classList.toggle('no-photo', empty); }
+function needPhoto() {
+  if (hasPhoto()) return true;
+  toast('先上传一张毛孩子的照片 📷'); $('uploadCta').focus(); $('uploadCta').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.03)' }, { transform: 'scale(1)' }], { duration: 360 });
+  return false;
 }
 function rebuildDogs() {
-  dogs = (officeDogs.length ? officeDogs : builtinPhotos.length ? builtinPhotos : PLACEHOLDERS).concat(myPhoto ? [myPhoto] : []);
-  // The current photo left the list (e.g. built-in photos replaced the demo dogs): switch like a normal pick
-  if (!dogs.find(d => d.key === S.dogKey)) { S.dogKey = ''; selectDog(dogs[0].key); return; }
+  dogs = officeDogs.concat(myPhoto ? [myPhoto] : []);
+  // The current photo left the list: switch like a normal pick, or go back to the upload prompt
+  if (!dogs.find(d => d.key === S.dogKey)) {
+    if (dogs.length) { S.dogKey = ''; selectDog(dogs[0].key); return; }
+    S.dogKey = ''; S.items = []; S.sel = -1; baseImg = null; baseCache = { key: '', canvas: null }; syncEmpty();
+  }
   renderDogs();
 }
 
@@ -1176,8 +1178,9 @@ function exportCanvas(maxSide) {
   const x = c.getContext('2d'); x.scale(sc, sc); render(x, false); dirty();
   return c;
 }
-const fileName = () => `${currentDog().name.replace('示例·', '')}-万圣变装.png`;
+const fileName = () => `${currentDog().name}-万圣变装.png`;
 async function saveImage() {
+  if (!needPhoto()) return;
   S.sel = -1; dirty();
   const c = exportCanvas();
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
@@ -1273,10 +1276,10 @@ $('posts').addEventListener('click', async e => {
   }
 });
 function openPost() {
-  if (!caps.db) return;
+  if (!caps.db || !needPhoto()) return;
   S.sel = -1; dirty();
   const c = exportCanvas(760), img = jpegUnder(c, 230000);
-  const dogName = currentDog().name.replace('示例·', '');
+  const dogName = currentDog().name;
   const m = openModal(`<h3>发布到展览墙</h3><img src="${img}" alt="预览"><input type="text" id="capIn" maxlength="40" placeholder="给作品起个名字，比如：吸血鬼伯爵${esc(dogName)}"><div class="bar"><button class="btn" data-close>取消</button><button class="btn primary" id="doPost">发布</button></div>`);
   const inp = m.querySelector('#capIn'); inp.focus();
   m.querySelector('#doPost').onclick = async () => {
@@ -1365,11 +1368,9 @@ window.addEventListener('resize', dirty);
 
 /* ---------- Boot ---------- */
 $('undoBtn').disabled = true;
-renderTabs(); refreshPanel(); renderDogs(); loadDog(currentDog());
-// Opening example outfit so the stage shows what the tool does
+renderTabs(); refreshPanel(); renderDogs(); syncEmpty();
 fontsPromise.then(dirty);
 if (location.hash === '#gallery') setView('gallery');
 initCaps();
-loadBuiltinPhotos();
 })();
 </script>
